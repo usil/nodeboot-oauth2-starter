@@ -10,6 +10,11 @@ class OauthBoot {
     this.expressSecured = this.bootOauthExpress(expressApp);
     this.jwtSecret = jwtSecret;
     this.extraParts = extraParts;
+    this.expiresIn = "24h";
+  }
+
+  setTokenExpirationTime(timeString) {
+    this.expiresIn = timeString;
   }
 
   async init() {
@@ -2040,8 +2045,7 @@ class OauthBoot {
             },
             this.jwtSecret,
             {
-              expiresIn: "24h",
-              // subject: username,
+              expiresIn: this.expiresIn,
             }
           );
           return res.json({
@@ -2076,7 +2080,6 @@ class OauthBoot {
       ) {
         const authToken =
           req.query["access_token"] || req.headers.authorization.split(" ")[1];
-        console.log(req.headers.authorization);
         jwt.verify(authToken, this.jwtSecret, (err, decode) => {
           if (err) {
             res.locals.user = undefined;
@@ -2085,7 +2088,6 @@ class OauthBoot {
               message: "Incorrect token",
             });
           } else {
-            console.log(decode.data);
             res.locals.user = decode.data;
           }
           next();
