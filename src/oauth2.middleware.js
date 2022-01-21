@@ -1032,6 +1032,7 @@ class OauthBoot {
               "OAUTH2_ApplicationPart.id as partId",
               "OAUTH2_Options.allowed",
               "OAUTH2_Roles.id as roleId",
+              "OAUTH2_Roles.deleted as roleDeleted",
               "OAUTH2_Roles.identifier as roleIdentifier"
             )
             .join(
@@ -1137,6 +1138,7 @@ class OauthBoot {
               "OAUTH2_ApplicationPart.id as partId",
               "OAUTH2_Options.allowed",
               "OAUTH2_Roles.id as roleId",
+              "OAUTH2_Roles.deleted as roleDeleted",
               "OAUTH2_Roles.identifier as roleIdentifier"
             )
             .join(
@@ -1170,6 +1172,9 @@ class OauthBoot {
               "OAUTH2_Options.applicationPart_id"
             )
             .where("OAUTH2_Clients.deleted", false);
+
+          console.log(clients);
+
           const parsedUsers = this.parseSubjectSearch(clients, "client");
 
           return res.status(200).json({
@@ -1633,7 +1638,6 @@ class OauthBoot {
               .where("OAUTH2_Options.deleted", false);
 
             const partsBasicResult = await partsSelectBasicQuery;
-            console.log(partsBasicResult);
             const parsedParts = this.parsePartSearch(partsBasicResult);
 
             return res.status(200).json({
@@ -2075,7 +2079,7 @@ class OauthBoot {
       if (
         (req.headers &&
           req.headers.authorization &&
-          req.headers.authorization.split(" ")[0] === "AK") ||
+          req.headers.authorization.split(" ")[0] === "BEARER") ||
         req.query["access_token"]
       ) {
         const authToken =
@@ -2113,7 +2117,7 @@ class OauthBoot {
         if (exp === undefined) {
           return res
             .status(403)
-            .json({ code: 403100, message: "User not authorized" });
+            .json({ code: 403100, message: "Subject not authorized" });
         }
         if (exp === ":") return next();
         const parsedExp = exp.split(":");
@@ -2126,7 +2130,7 @@ class OauthBoot {
         if (!user) {
           return res
             .status(403)
-            .json({ code: 403100, message: "User not authorized" });
+            .json({ code: 403100, message: "Subject not authorized" });
         }
         const subjectTableToSearch =
           user.subjectType === "user" ? "OAUTH2_Users" : "OAUTH2_Clients";
@@ -2146,9 +2150,14 @@ class OauthBoot {
             "OAUTH2_SubjectRole.subject_id"
           )
           .join(
+            "OAUTH2_Roles",
+            `OAUTH2_Roles.id`,
+            "OAUTH2_SubjectRole.roles_id"
+          )
+          .join(
             "OAUTH2_RoleOption",
             `OAUTH2_RoleOption.roles_id`,
-            "OAUTH2_SubjectRole.roles_id"
+            "OAUTH2_Roles.id"
           )
           .join(
             "OAUTH2_Options",
@@ -2163,7 +2172,9 @@ class OauthBoot {
           .where(
             `${subjectTableToSearch}.${userNameOrIdentifier}`,
             user[userNameOrIdentifier]
-          );
+          )
+          .where("OAUTH2_Roles.deleted", false)
+          .andWhere(`${subjectTableToSearch}.deleted`, false);
         const patterns = this.joinSearch(
           userAllowed,
           "applicationPart",
@@ -2181,7 +2192,7 @@ class OauthBoot {
         if (patternIndex !== -1) return next();
         return res
           .status(403)
-          .json({ code: 403100, message: "User not authorized" });
+          .json({ code: 403100, message: "Subject not authorized" });
       } catch (error) {
         console.log(error);
         return res.status(500).json({ code: 500000, message: error.message });
@@ -2290,22 +2301,23 @@ class OauthBoot {
           subjectId: usersBaseArray[index].subjectId,
           name: usersBaseArray[index].name,
           [userNameOrIdentifier]: usersBaseArray[index][userNameOrIdentifier],
-          roles: [
-            {
-              id: usersBaseArray[index].roleId,
-              identifier: usersBaseArray[index].roleIdentifier,
-              parts: [
-                {
-                  id: usersBaseArray[index].partId,
-                  applicationPartName: usersBaseArray[index].applicationPart,
-                  allowed: [usersBaseArray[index].allowed],
-                },
-              ],
-            },
-          ],
+          roles: [],
         };
+        if (!usersBaseArray[index].roleDeleted) {
+          userObject.roles.push({
+            id: usersBaseArray[index].roleId,
+            identifier: usersBaseArray[index].roleIdentifier,
+            parts: [
+              {
+                id: usersBaseArray[index].partId,
+                applicationPartName: usersBaseArray[index].applicationPart,
+                allowed: [usersBaseArray[index].allowed],
+              },
+            ],
+          });
+        }
         newArray.push(userObject);
-      } else {
+      } else if (!usersBaseArray[index].roleDeleted) {
         const lastIndex = newArray.length - 1;
         const indexRole = newArray[lastIndex].roles.findIndex(
           (r) => r.id === usersBaseArray[index].roleId
