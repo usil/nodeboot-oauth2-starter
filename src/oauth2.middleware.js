@@ -21,7 +21,6 @@ class OauthBoot {
     try {
       await this.auditDataBase();
       this.expressSecured.use(this.decodeToken());
-      // this.expressSecured.use(this.guard());
       this.addEndPoints();
     } catch (error) {
       console.log(error);
@@ -542,22 +541,22 @@ class OauthBoot {
 
   bootOauthExpress(expressApp) {
     expressApp.obPost = (path, allowed, ...handler) => {
-      expressApp.set(path, allowed);
+      expressApp.set("POST" + "||" + path, allowed);
       return expressApp.post(path, this.guard(), ...handler);
     };
 
     expressApp.obGet = (path, allowed, ...handler) => {
-      expressApp.set(path, allowed);
+      expressApp.set("GET" + "||" + path, allowed);
       return expressApp.get(path, this.guard(), ...handler);
     };
 
     expressApp.obPut = (path, allowed, ...handler) => {
-      expressApp.set(path, allowed);
+      expressApp.set("PUT" + "||" + path, allowed);
       return expressApp.put(path, this.guard(), ...handler);
     };
 
     expressApp.obDelete = (path, allowed, ...handler) => {
-      expressApp.set(path, allowed);
+      expressApp.set("DELETE" + "||" + path, allowed);
       return expressApp.delete(path, this.guard(), ...handler);
     };
 
@@ -566,22 +565,22 @@ class OauthBoot {
 
   bootOauthExpressRouter(expressRouter) {
     expressRouter.obPost = (path, allowed, ...handler) => {
-      this.expressApp.set(path, allowed);
+      this.expressApp.set("POST" + "||" + path, allowed);
       return expressRouter.post(path, this.guard(), ...handler);
     };
 
     expressRouter.obGet = (path, allowed, ...handler) => {
-      this.expressApp.set(path, allowed);
+      this.expressApp.set("GET" + "||" + path, allowed);
       return expressRouter.get(path, this.guard(), ...handler);
     };
 
     expressRouter.obPut = (path, allowed, ...handler) => {
-      this.expressApp.set(path, allowed);
+      this.expressApp.set("PUT" + "||" + path, allowed);
       return expressRouter.put(path, this.guard(), ...handler);
     };
 
     expressRouter.obDelete = (path, allowed, ...handler) => {
-      this.expressApp.set(path, allowed);
+      this.expressApp.set("DELETE" + "||" + path, allowed);
       return expressRouter.delete(path, this.guard(), ...handler);
     };
 
@@ -1904,7 +1903,7 @@ class OauthBoot {
               }
 
               if (optionsToInsert.length !== 0) {
-                await trx("OAUTH2_Options").insert(roleOptionToInsert);
+                await trx("OAUTH2_Options").insert(optionsToInsert);
               }
             } catch (error) {
               throw new Error(error.message);
@@ -2107,6 +2106,7 @@ class OauthBoot {
     return async (req, res, next) => {
       try {
         let pathToSearch = req.path;
+        pathToSearch = req.method + "||" + pathToSearch;
         const paramsKeys = Object.keys(req.params);
         if (paramsKeys.length > 0) {
           for (const param of paramsKeys) {
@@ -2114,6 +2114,7 @@ class OauthBoot {
           }
         }
         const exp = this.expressSecured.get(pathToSearch);
+
         if (exp === undefined) {
           return res
             .status(403)
