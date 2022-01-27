@@ -4,6 +4,7 @@
  */
 
 module.exports = {
+  coverageReporters: ["json-summary", "text", "lcov"],
   // All imported modules in your tests should be mocked automatically
   // automock: false,
 

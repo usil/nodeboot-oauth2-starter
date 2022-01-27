@@ -1,7 +1,8 @@
 const ExpressWrapper = require("./helpers/ExpressWrapper.js");
 const security = require("./helpers/security.js");
 const tableCreation = require("./helpers/table-creation.js");
-
+const authSecureRoutes = require("./helpers/routes/routes.js");
+const generalHelpers = require("./helpers/general-helpers.js");
 class OauthBoot {
   constructor(expressApp, knex, jwtSecret, extraParts = []) {
     this.expressApp = expressApp;
@@ -84,7 +85,16 @@ class OauthBoot {
         security(this.knex, this.expressSecured).decodeToken(this.jwtSecret)
           .decode
       );
-      // this.addEndPoints();
+
+      const helper = generalHelpers();
+
+      authSecureRoutes(
+        this.expressSecured,
+        this.knex,
+        helper.validateBody,
+        this.jwtSecret,
+        this.expiresIn
+      );
     } catch (error) {
       console.log(error);
       throw new Error(error.message);

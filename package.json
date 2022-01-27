@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "jest --verbose --collectCoverage controllers.test.js"
+    "test": "jest --verbose --collectCoverage --silent",
+    "test:badges": "npm test && jest-coverage-badges --output badges"
   },
   "author": "",
   "license": "ISC",
@@ -14,6 +15,7 @@
     "randomstring": "^1.2.1"
   },
   "devDependencies": {
-    "jest": "^27.4.7"
+    "jest": "^27.4.7",
+    "jest-coverage-badges": "^1.1.2"
   }
 }

@@ -1,5 +1,12 @@
 # nodeboot-oauth2-starter
 
+## Coverage
+
+<img src="./badges/badge-branches.svg">
+<img src="./badges/badge-functions.svg">
+<img src="./badges/badge-lines.svg">
+<img src="./badges/badge-statements.svg">
+
 You can use this library in any express project to secure your endpoints. To do this you will need a mysql database.
 
 ## Access control string
