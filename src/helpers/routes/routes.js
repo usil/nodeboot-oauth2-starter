@@ -18,7 +18,7 @@ const authSecureRoutes = (
       password: { type: "string" },
       roles: { type: "array" },
       name: { type: "string" },
-    }),
+    }).validate,
     controller.createUser
   );
 
@@ -30,7 +30,7 @@ const authSecureRoutes = (
       identifier: { type: "string" },
       roles: { type: "array" },
       name: { type: "string" },
-    }),
+    }).validate,
     controller.createClient
   );
 
@@ -41,7 +41,7 @@ const authSecureRoutes = (
     validateBodyMiddleware({
       identifier: { type: "string" },
       allowedObject: { type: "object" },
-    }),
+    }).validate,
     controller.createRole
   );
 
@@ -51,7 +51,7 @@ const authSecureRoutes = (
     "OAUTH2_application:create",
     validateBodyMiddleware({
       identifier: { type: "string" },
-    }),
+    }).validate,
     controller.createApplication
   );
 
@@ -62,7 +62,7 @@ const authSecureRoutes = (
     validateBodyMiddleware({
       partIdentifier: { type: "string" },
       applications_id: { type: "number" },
-    }),
+    }).validate,
     controller.createApplicationPart
   );
 
@@ -73,7 +73,7 @@ const authSecureRoutes = (
     validateBodyMiddleware({
       allowed: { type: "string" },
       applicationPart_id: { type: "number" },
-    }),
+    }).validate,
     controller.createOption
   );
 
@@ -103,7 +103,7 @@ const authSecureRoutes = (
     "OAUTH2_user:update",
     validateBodyMiddleware({
       roles: { type: "array" },
-    }),
+    }).validate,
     controller.updateUserRoles
   );
 
@@ -113,7 +113,7 @@ const authSecureRoutes = (
     "OAUTH2_client:update",
     validateBodyMiddleware({
       roles: { type: "array" },
-    }),
+    }).validate,
     controller.updateClientRoles
   );
 
@@ -144,7 +144,7 @@ const authSecureRoutes = (
     "OAUTH2_user:update",
     validateBodyMiddleware({
       name: { type: "string" },
-    }),
+    }).validate,
     controller.updateUser
   );
 
@@ -155,7 +155,7 @@ const authSecureRoutes = (
     validateBodyMiddleware({
       newPassword: { type: "string" },
       oldPassword: { type: "string" },
-    }),
+    }).validate,
     controller.updatePassword
   );
 
@@ -165,7 +165,7 @@ const authSecureRoutes = (
     "OAUTH2_client:update",
     validateBodyMiddleware({
       name: { type: "string" },
-    }),
+    }).validate,
     controller.updateClient
   );
 
@@ -186,7 +186,7 @@ const authSecureRoutes = (
     validateBodyMiddleware({
       newAllowedObject: { type: "object" },
       originalAllowedObject: { type: "object" },
-    }),
+    }).validate,
     controller.updateRoleOptions
   );
 
@@ -197,7 +197,7 @@ const authSecureRoutes = (
     validateBodyMiddleware({
       partIdentifier: { type: "string" },
       applications_id: { type: "number" },
-    }),
+    }).validate,
     controller.createPart
   );
 
@@ -208,7 +208,7 @@ const authSecureRoutes = (
     validateBodyMiddleware({
       newPartOptions: { type: "array" },
       originalPartOptions: { type: "array" },
-    }),
+    }).validate,
     controller.updatePartOptions
   );
 
@@ -232,7 +232,7 @@ const authSecureRoutes = (
     validateBodyMiddleware({
       username: { type: "string" },
       password: { type: "string" },
-    }),
+    }).validate,
     controller.login
   );
 };

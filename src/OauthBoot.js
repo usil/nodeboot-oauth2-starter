@@ -26,22 +26,22 @@ class OauthBoot {
   bootOauthExpress(expressApp, expressWrapper) {
     expressApp.obPost = expressWrapper.createSecurePost(
       expressApp,
-      security(this.knex, this.expressSecured).guard
+      security(this.knex, this.expressApp).guard
     );
 
     expressApp.obGet = expressWrapper.createSecureGet(
       expressApp,
-      security(this.knex, this.expressSecured).guard
+      security(this.knex, this.expressApp).guard
     );
 
     expressApp.obPut = expressWrapper.createSecurePut(
       expressApp,
-      security(this.knex, this.expressSecured).guard
+      security(this.knex, this.expressApp).guard
     );
 
     expressApp.obDelete = expressWrapper.createSecureDelete(
       expressApp,
-      security(this.knex, this.expressSecured).guard
+      security(this.knex, this.expressApp).guard
     );
 
     return expressApp;
@@ -53,25 +53,25 @@ class OauthBoot {
     expressRouter.obPost = expressWrapper.createSecurePostRouter(
       this.expressApp,
       expressRouter,
-      security(this.knex, this.expressSecured).guard
+      security(this.knex, this.expressApp).guard
     );
 
     expressRouter.obGet = expressWrapper.createSecureGetRouter(
       this.expressApp,
       expressRouter,
-      security(this.knex, this.expressSecured).guard
+      security(this.knex, this.expressApp).guard
     );
 
     expressRouter.obPut = expressWrapper.createSecurePutRouter(
       this.expressApp,
       expressRouter,
-      security(this.knex, this.expressSecured).guard
+      security(this.knex, this.expressApp).guard
     );
 
     expressRouter.obDelete = expressWrapper.createSecureDeleteRouter(
       this.expressApp,
       expressRouter,
-      security(this.knex, this.expressSecured).guard
+      security(this.knex, this.expressApp).guard
     );
 
     return expressRouter;
