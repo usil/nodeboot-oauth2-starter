@@ -1,10 +1,10 @@
 {
   "name": "nodeboot-oauth2-starter",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "jest --verbose --collectCoverage --silent",
+    "test": "jest --verbose --collectCoverage --silent && jest-coverage-badges --output badges",
     "test:badges": "npm test && jest-coverage-badges --output badges"
   },
   "author": "",
