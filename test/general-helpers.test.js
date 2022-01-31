@@ -113,6 +113,7 @@ describe("All general helpers function accordingly", () => {
         id: 1,
         subjectId: 1,
         name: "name1",
+        description: "desc",
         username: "user1",
         roleDeleted: false,
         roleId: 1,
@@ -125,6 +126,7 @@ describe("All general helpers function accordingly", () => {
         id: 1,
         subjectId: 1,
         name: "name1",
+        description: "desc",
         username: "user1",
         roleDeleted: false,
         roleId: 1,
@@ -138,6 +140,7 @@ describe("All general helpers function accordingly", () => {
         subjectId: 1,
         name: "name1",
         username: "user1",
+        description: "desc",
         roleDeleted: false,
         roleId: 2,
         roleIdentifier: "rol2",
@@ -151,6 +154,7 @@ describe("All general helpers function accordingly", () => {
         name: "name1",
         username: "user1",
         roleDeleted: false,
+        description: "desc",
         roleId: 2,
         roleIdentifier: "rol2",
         partId: 4,
@@ -162,6 +166,7 @@ describe("All general helpers function accordingly", () => {
         subjectId: 2,
         name: "name2",
         username: "user2",
+        description: "desc",
         roleDeleted: true,
         roleId: 2,
         roleIdentifier: "rol2",
@@ -174,6 +179,7 @@ describe("All general helpers function accordingly", () => {
     const clientBaseArray = [
       {
         id: 1,
+        description: "desc",
         subjectId: 1,
         name: "name1",
         identifier: "user1",
@@ -186,6 +192,7 @@ describe("All general helpers function accordingly", () => {
       },
       {
         id: 1,
+        description: "desc",
         subjectId: 1,
         name: "name1",
         identifier: "user1",
@@ -198,6 +205,7 @@ describe("All general helpers function accordingly", () => {
       },
       {
         id: 1,
+        description: "desc",
         subjectId: 1,
         name: "name1",
         identifier: "user1",
@@ -210,6 +218,7 @@ describe("All general helpers function accordingly", () => {
       },
       {
         id: 1,
+        description: "desc",
         subjectId: 1,
         name: "name1",
         identifier: "user1",
@@ -223,6 +232,7 @@ describe("All general helpers function accordingly", () => {
       {
         id: 2,
         subjectId: 2,
+        description: "desc",
         name: "name2",
         identifier: "user2",
         roleDeleted: false,
@@ -235,6 +245,7 @@ describe("All general helpers function accordingly", () => {
       {
         id: 2,
         subjectId: 2,
+        description: "desc",
         name: "name2",
         identifier: "user2",
         roleDeleted: true,
@@ -262,6 +273,8 @@ describe("All general helpers function accordingly", () => {
     expect(parsedSearch[2]).toBe(undefined);
 
     expect(parsedSearch[0].username).toBe("user1");
+
+    expect(parsedSearch[0].description).toBe("desc");
 
     expect(parsedSearchClient[0].id).toBe(1);
 

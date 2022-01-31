@@ -113,6 +113,10 @@ describe("All auth controllers work", () => {
   });
 
   test("Creates the client in a transaction", async () => {
+    const bcryptSpy = jest.spyOn(bcrypt, "hash").mockImplementation(() => {
+      return "hashed";
+    });
+
     const reqBody = {
       identifier: "identifier",
       encryptedAccessToken: "encrypted",
@@ -135,6 +139,42 @@ describe("All auth controllers work", () => {
     expect(trxMock.table).toHaveBeenCalledWith("OAUTH2_Clients");
     expect(trxMock.table).toHaveBeenCalledWith("OAUTH2_SubjectRole");
     expect(trxMock.table).toHaveBeenCalledWith("OAUTH2_Subjects");
+    expect(bcryptSpy).toHaveBeenCalled();
+    bcryptSpy.mockRestore();
+  });
+
+  test("Creates the client in a transaction with long live", async () => {
+    const bcryptSpy = jest.spyOn(bcrypt, "hash").mockImplementation(() => {
+      return "hashed";
+    });
+
+    const reqBody = {
+      identifier: "identifier",
+      encryptedAccessToken: "encrypted",
+      name: "name",
+      roles: ["admin"],
+    };
+
+    const trxMock = {
+      table: jest.fn().mockReturnThis(),
+      insert: jest.fn().mockResolvedValue([1]),
+      update: jest.fn().mockReturnThis(),
+      where: jest.fn().mockResolvedValue([1]),
+    };
+
+    const knex = {};
+
+    const controllers = authControllers(knex, "secret");
+
+    await controllers.createClientTransaction(trxMock, reqBody, true);
+
+    expect(trxMock.insert).toHaveBeenCalledTimes(3);
+    expect(trxMock.table).toHaveBeenCalledWith("OAUTH2_Clients");
+    expect(trxMock.table).toHaveBeenCalledWith("OAUTH2_SubjectRole");
+    expect(trxMock.table).toHaveBeenCalledWith("OAUTH2_Subjects");
+    expect(trxMock.where).toHaveBeenCalledWith("OAUTH2_Clients.id", "=", 1);
+    expect(bcryptSpy).toHaveBeenCalled();
+    bcryptSpy.mockRestore();
   });
 
   test("Creates the client in a fails", async () => {
@@ -160,13 +200,12 @@ describe("All auth controllers work", () => {
   });
 
   test("Create client", async () => {
-    const bcryptSpy = jest.spyOn(bcrypt, "hash").mockImplementation(() => {
-      return "hashed";
-    });
-
     const mockedReq = {
       body: {
         identifier: "pass",
+      },
+      query: {
+        longLive: true,
       },
     };
 
@@ -183,11 +222,8 @@ describe("All auth controllers work", () => {
 
     await controllers.createClient(mockedReq, mockRes);
 
-    expect(bcryptSpy).toHaveBeenCalled();
     expect(mockRes.status).toHaveBeenCalledWith(201);
     expect(knexMock.transaction).toHaveBeenCalled();
-
-    bcryptSpy.mockRestore();
   });
 
   test("Create client error", async () => {
@@ -814,6 +850,7 @@ describe("All auth controllers work", () => {
     expect(mockKnex.select).toHaveBeenCalledWith(
       "OAUTH2_Users.id",
       "OAUTH2_Users.username",
+      "OAUTH2_Subjects.description",
       "OAUTH2_Subjects.id as subjectId",
       "OAUTH2_Subjects.name",
       "OAUTH2_ApplicationPart.partIdentifier as applicationPart",
@@ -986,6 +1023,7 @@ describe("All auth controllers work", () => {
     expect(mockKnex.select).toHaveBeenCalledWith(
       "OAUTH2_Users.id",
       "OAUTH2_Users.username",
+      "OAUTH2_Subjects.description",
       "OAUTH2_Subjects.id as subjectId",
       "OAUTH2_Subjects.name",
       "OAUTH2_ApplicationPart.partIdentifier as applicationPart",
@@ -3081,5 +3119,545 @@ describe("All auth controllers work", () => {
 
     bcryptSpy.mockRestore();
     jwtSpy.mockRestore();
+  });
+
+  test("Login fails", async () => {
+    const bcryptSpy = jest.spyOn(bcrypt, "compare").mockImplementation(() => {
+      return true;
+    });
+    const jwtSpy = jest.spyOn(jwt, "sign").mockImplementation(() => {
+      throw new Error("Async error");
+    });
+    const req = {
+      body: {
+        username: "admin",
+        password: "password",
+      },
+    };
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn().mockResolvedValue([1]),
+    };
+    const knex = {
+      table: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      join: jest.fn().mockReturnThis(),
+      where: jest.fn().mockResolvedValue([
+        {
+          username: "admin",
+          roles: "admin",
+          id: 1,
+          name: "Admin",
+          password: "password",
+        },
+      ]),
+    };
+
+    const controllers = authControllers(knex, "secret");
+    await controllers.login(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+
+    bcryptSpy.mockRestore();
+    jwtSpy.mockRestore();
+  });
+
+  test("Token generator non grant type", async () => {
+    const req = {
+      query: {
+        grant_type: "none",
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knex = {};
+
+    const controllers = authControllers(knex, "secret");
+    await controllers.token(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      code: 400400,
+      message: "Unsupported grand type",
+    });
+  });
+
+  test("Token generator clients", async () => {
+    const req = {
+      query: {
+        grant_type: "client_credentials",
+        client_id: 1,
+        client_secret: "secret",
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knex = {};
+
+    const controllers = authControllers(knex, "secret");
+    controllers.handleClientToken = jest
+      .fn()
+      .mockResolvedValue([{ result: "result" }, null]);
+    await controllers.token(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.json).toHaveBeenCalledWith({
+      message: `Token generated for client ${1}`,
+      code: 200000,
+      content: { result: "result" },
+    });
+  });
+
+  test("Token generator clients error 400001", async () => {
+    const req = {
+      query: {
+        grant_type: "client_credentials",
+        client_id: 1,
+        client_secret: "secret",
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knex = {};
+
+    const controllers = authControllers(knex, "secret");
+    controllers.handleClientToken = jest.fn().mockResolvedValue([null, 400001]);
+
+    await controllers.token(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({
+      code: 400001,
+      message: "Incorrect client secret",
+    });
+  });
+
+  test("Token generator clients error 400011", async () => {
+    const req = {
+      query: {
+        grant_type: "client_credentials",
+        client_id: 1,
+        client_secret: "secret",
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knex = {};
+
+    const controllers = authControllers(knex, "secret");
+    controllers.handleClientToken = jest.fn().mockResolvedValue([null, 400011]);
+
+    await controllers.token(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({
+      code: 400011,
+      message:
+        "Client is not able to generate tokens, use your long live token",
+    });
+  });
+
+  test("Token generator clients error 400004", async () => {
+    const req = {
+      query: {
+        grant_type: "client_credentials",
+        client_id: 1,
+        client_secret: "secret",
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knex = {};
+
+    const controllers = authControllers(knex, "secret");
+    controllers.handleClientToken = jest.fn().mockResolvedValue([null, 400004]);
+
+    await controllers.token(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({
+      code: 400004,
+      message: "Client not found",
+    });
+  });
+
+  test("Token generator clients error", async () => {
+    const req = {
+      query: {
+        grant_type: "client_credentials",
+        client_id: 1,
+        client_secret: "secret",
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knex = {};
+
+    const controllers = authControllers(knex, "secret");
+    controllers.handleClientToken = jest
+      .fn()
+      .mockResolvedValue([null, "Some Error"]);
+
+    await controllers.token(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+  });
+
+  test("Token generator users", async () => {
+    const req = {
+      query: {
+        grant_type: "password",
+      },
+      body: {
+        username: "username",
+        password: "secret",
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knex = {};
+
+    const controllers = authControllers(knex, "secret");
+
+    controllers.handleUserToken = jest
+      .fn()
+      .mockResolvedValue([{ result: "result" }, null]);
+
+    await controllers.token(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.json).toHaveBeenCalledWith({
+      message: `Token generated for user username`,
+      code: 200000,
+      content: { result: "result" },
+    });
+  });
+
+  test("Token generator users error 400001", async () => {
+    const req = {
+      query: {
+        grant_type: "password",
+      },
+      body: {
+        username: "username",
+        password: "secret",
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knex = {};
+
+    const controllers = authControllers(knex, "secret");
+
+    controllers.handleUserToken = jest.fn().mockResolvedValue([null, 400001]);
+
+    await controllers.token(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({
+      message: "Incorrect user password",
+      code: 400001,
+    });
+  });
+
+  test("Token generator users error 400004", async () => {
+    const req = {
+      query: {
+        grant_type: "password",
+      },
+      body: {
+        username: "username",
+        password: "secret",
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knex = {};
+
+    const controllers = authControllers(knex, "secret");
+
+    controllers.handleUserToken = jest.fn().mockResolvedValue([null, 400004]);
+
+    await controllers.token(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({
+      message: "User not found",
+      code: 400004,
+    });
+  });
+
+  test("Token generator users error", async () => {
+    const req = {
+      query: {
+        grant_type: "password",
+      },
+      body: {
+        username: "username",
+        password: "secret",
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knex = {};
+
+    const controllers = authControllers(knex, "secret");
+
+    controllers.handleUserToken = jest
+      .fn()
+      .mockResolvedValue([null, "Some error"]);
+
+    await controllers.token(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+  });
+
+  test("Token generator fails", async () => {
+    const req = {
+      query: {
+        grant_type: "password",
+      },
+      body: {
+        username: "username",
+        password: "secret",
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knex = {};
+
+    const controllers = authControllers(knex, "secret");
+
+    controllers.handleUserToken = jest
+      .fn()
+      .mockRejectedValue(new Error("Async error"));
+
+    await controllers.token(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+  });
+
+  test("Generate long live token", async () => {
+    const req = {
+      query: {},
+      body: {
+        identifier: "identifier",
+        client_id: 1,
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knex = {
+      table: jest.fn().mockReturnThis(),
+      update: jest.fn().mockReturnThis(),
+      where: jest.fn().mockResolvedValue("some"),
+    };
+
+    const controllers = authControllers(knex, "secret");
+    await controllers.generateLongLive(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(201);
+
+    expect(knex.table).toHaveBeenCalledWith("OAUTH2_Clients");
+    expect(knex.update).toHaveBeenCalled();
+    expect(knex.where).toHaveBeenCalledWith("OAUTH2_Clients.id", "=", 1);
+  });
+
+  test("Remove long live token", async () => {
+    const req = {
+      query: {
+        remove_long_live: "true",
+      },
+      body: {
+        identifier: "identifier",
+        client_id: 1,
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knex = {
+      table: jest.fn().mockReturnThis(),
+      update: jest.fn().mockReturnThis(),
+      where: jest.fn().mockResolvedValue("some"),
+    };
+
+    const controllers = authControllers(knex, "secret");
+    await controllers.generateLongLive(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.json).toHaveBeenCalledWith({
+      message: `Token removed`,
+      code: 200001,
+    });
+
+    expect(knex.table).toHaveBeenCalledWith("OAUTH2_Clients");
+    expect(knex.update).toHaveBeenCalledWith({
+      access_token: null,
+    });
+    expect(knex.where).toHaveBeenCalledWith("OAUTH2_Clients.id", "=", 1);
+  });
+
+  test("Remove long live token fails", async () => {
+    const req = {
+      query: {
+        remove_long_live: "true",
+      },
+      body: {
+        identifier: "identifier",
+        client_id: 1,
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knex = {
+      table: jest.fn().mockReturnThis(),
+      update: jest.fn().mockReturnThis(),
+      where: jest.fn().mockRejectedValue(new Error("Async error")),
+    };
+
+    const controllers = authControllers(knex, "secret");
+    await controllers.generateLongLive(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+  });
+
+  test("Handle user token 400004", async () => {
+    const username = "username";
+    const password = "password";
+
+    const knex = {
+      table: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      join: jest.fn().mockReturnThis(),
+      update: jest.fn().mockReturnThis(),
+      where: jest.fn().mockResolvedValue([]),
+    };
+
+    const controllers = authControllers(knex, "secret");
+    const result = await controllers.handleUserToken(username, password);
+
+    expect(result).toStrictEqual([null, 400004]);
+  });
+
+  test("Handle user token 400001", async () => {
+    const username = "username";
+    const password = "password";
+    const bcryptSpy = jest.spyOn(bcrypt, "compare").mockImplementation(() => {
+      return false;
+    });
+    const knex = {
+      table: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      join: jest.fn().mockReturnThis(),
+      update: jest.fn().mockReturnThis(),
+      where: jest.fn().mockResolvedValue([1]),
+    };
+
+    const controllers = authControllers(knex, "secret");
+    const result = await controllers.handleUserToken(username, password);
+
+    expect(result).toStrictEqual([null, 400001]);
+    bcryptSpy.mockRestore();
+  });
+
+  test("Handle client token 400004", async () => {
+    const client_id = "username";
+    const client_secret = "password";
+
+    const knex = {
+      table: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      join: jest.fn().mockReturnThis(),
+      update: jest.fn().mockReturnThis(),
+      where: jest.fn().mockResolvedValue([]),
+    };
+
+    const controllers = authControllers(knex, "secret");
+    const result = await controllers.handleClientToken(
+      client_id,
+      client_secret
+    );
+
+    expect(result).toStrictEqual([null, 400004]);
+  });
+
+  test("Handle client token 400001", async () => {
+    const client_id = "username";
+    const client_secret = "password";
+    const bcryptSpy = jest.spyOn(bcrypt, "compare").mockImplementation(() => {
+      return false;
+    });
+    const knex = {
+      table: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      join: jest.fn().mockReturnThis(),
+      update: jest.fn().mockReturnThis(),
+      where: jest.fn().mockResolvedValue([1]),
+    };
+
+    const controllers = authControllers(knex, "secret");
+    const result = await controllers.handleClientToken(
+      client_id,
+      client_secret
+    );
+
+    expect(result).toStrictEqual([null, 400001]);
+    bcryptSpy.mockRestore();
   });
 });

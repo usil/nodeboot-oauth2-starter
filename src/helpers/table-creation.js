@@ -2,7 +2,6 @@ const fs = require("fs").promises;
 const path = require("path");
 const randomstring = require("randomstring");
 const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
 
 const tableCreation = (knex, jwtSecret, extraParts = []) => {
   const tableCreationObj = {};
@@ -202,7 +201,8 @@ const tableCreation = (knex, jwtSecret, extraParts = []) => {
     try {
       const columns = await knex.table(tableName).columnInfo();
       const tableColumnInconsistencies = [];
-
+      console.log("info", tableName);
+      console.log(columns);
       for (const column in columnsToMatch) {
         if (!columns[column]) {
           tableColumnInconsistencies.push(`Column ${column} does not exist`);
@@ -360,6 +360,7 @@ const tableCreation = (knex, jwtSecret, extraParts = []) => {
 
       const subjectId = await trx.table("OAUTH2_Subjects").insert({
         name: "Admin",
+        description: "The admin of the application",
       });
 
       await trx.table("OAUTH2_SubjectRole").insert({
@@ -368,31 +369,21 @@ const tableCreation = (knex, jwtSecret, extraParts = []) => {
       });
 
       const password = randomstring.generate();
+      const clientSecret = randomstring.generate();
 
       const encryptedPassword = await bcrypt.hash(password, 10);
-
-      const access_token = jwt.sign(
-        {
-          data: {
-            subjectType: "client",
-            identifier: "admin",
-          },
-        },
-        jwtSecret
-      );
-
-      const encryptedAccessToken = await bcrypt.hash(access_token, 10);
+      const encryptedSecret = await bcrypt.hash(clientSecret, 10);
 
       await trx.table("OAUTH2_Users").insert({
         username: "admin",
         password: encryptedPassword,
-        subject_id: subjectId,
+        subject_id: subjectId[0],
       });
 
-      await trx.table("OAUTH2_Clients").insert({
+      const clientId = await trx.table("OAUTH2_Clients").insert({
         identifier: "admin",
-        access_token: encryptedAccessToken,
-        subject_id: subjectId,
+        client_secret: encryptedSecret,
+        subject_id: subjectId[0],
       });
 
       await fs.writeFile(
@@ -400,8 +391,9 @@ const tableCreation = (knex, jwtSecret, extraParts = []) => {
         `Credentials for the admin user in it.\n
           Username: admin \n   
           Password: ${password}
-          Credentials for the admin client in it.\n
-          access_token: ${access_token}`
+          Credentials for the admin client.\n
+          client_id: ${clientId} \n
+          client_secret: ${clientSecret}`
       );
 
       console.log("Created file credentials.txt in the cwd");
@@ -431,6 +423,7 @@ const tableCreation = (knex, jwtSecret, extraParts = []) => {
   tableCreationObj.createSubjectsTable = (table) => {
     table.increments("id");
     table.string("name", 45).notNullable();
+    table.string("description", 255).notNullable();
     table.boolean("deleted").defaultTo(false);
     table.timestamps(true, true);
   };
@@ -449,8 +442,10 @@ const tableCreation = (knex, jwtSecret, extraParts = []) => {
     table.increments("id");
     table.integer("subject_id").unsigned().notNullable();
     table.foreign("subject_id").references("OAUTH2_Subjects.id");
+    table.string("client_secret", 75).notNullable();
     table.string("identifier", 100).notNullable().unique();
-    table.string("access_token", 255).notNullable();
+    table.string("access_token", 255);
+    table.boolean("revoked").defaultTo(false);
     table.boolean("deleted").defaultTo(false);
     table.timestamps(true, true);
   };

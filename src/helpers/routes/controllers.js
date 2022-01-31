@@ -1,6 +1,7 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const generalHelpers = require("../general-helpers.js");
+const randomstring = require("randomstring");
 
 const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
   const controller = {};
@@ -28,10 +29,11 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
 
   controller.createUserTransaction = async (trx, reqBody) => {
     try {
-      const { username, name, roles, encryptedPassword } = reqBody;
+      const { username, name, roles, encryptedPassword, description } = reqBody;
 
       const firstResult = await trx.table("OAUTH2_Subjects").insert({
         name,
+        description,
       });
 
       await trx.table("OAUTH2_Users").insert({
@@ -50,56 +52,84 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
     }
   };
 
-  controller.createClientTransaction = async (trx, reqBody) => {
+  controller.createClientTransaction = async (
+    trx,
+    reqBody,
+    longLive = false
+  ) => {
     try {
-      const { identifier, name, roles, encryptedAccessToken } = reqBody;
+      const { identifier, name, roles, description } = reqBody;
+
+      const clientSecret = randomstring.generate();
+
+      const encryptedSecret = await bcrypt.hash(clientSecret, 10);
 
       const firstResult = await trx.table("OAUTH2_Subjects").insert({
         name,
+        description,
       });
 
-      await trx.table("OAUTH2_Clients").insert({
+      const result = await trx.table("OAUTH2_Clients").insert({
         identifier: identifier.toLowerCase(),
-        access_token: encryptedAccessToken,
+        client_secret: encryptedSecret,
         subject_id: firstResult[0],
       });
+
+      let access_token = "";
+
+      if (longLive === true || longLive === "true") {
+        access_token = jwt.sign(
+          {
+            data: {
+              id: result[0],
+              subjectType: "client",
+              identifier: identifier.toLowerCase(),
+            },
+          },
+          jwtSecret
+        );
+
+        const encryptedAccessToken = await bcrypt.hash(access_token, 10);
+
+        await trx
+          .table("OAUTH2_Clients")
+          .update({
+            access_token: encryptedAccessToken,
+          })
+          .where("OAUTH2_Clients.id", "=", result[0]);
+      }
 
       const subjectRolesToInsert = roles.map((r) => {
         return { subject_id: firstResult[0], roles_id: r.id };
       });
 
       await trx.table("OAUTH2_SubjectRole").insert(subjectRolesToInsert);
+
+      return { clientSecret, clientId: result[0], access_token };
     } catch (error) {
+      console.log(error);
       throw new Error(error.message);
     }
   };
 
   controller.createClient = async (req, res) => {
     try {
-      const { identifier } = req.body;
+      let response;
 
-      const access_token = jwt.sign(
-        {
-          data: {
-            subjectType: "client",
-            identifier: identifier,
-          },
-        },
-        jwtSecret
-      );
-
-      const encryptedAccessToken = await bcrypt.hash(access_token, 10);
-
-      req.body.encryptedAccessToken = encryptedAccessToken;
+      const { longLive } = req.query;
 
       await knex.transaction(async (trx) => {
-        await controller.createClientTransaction(trx, req.body);
+        response = await controller.createClientTransaction(
+          trx,
+          req.body,
+          longLive
+        );
       });
 
       return res.status(201).json({
         code: 200000,
         message: "Client added",
-        content: { access_token },
+        content: response,
       });
     } catch (error) {
       console.log(error);
@@ -240,6 +270,7 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
           "OAUTH2_Users.id",
           "OAUTH2_Users.username",
           "OAUTH2_Subjects.id as subjectId",
+          "OAUTH2_Subjects.description",
           "OAUTH2_Subjects.name",
           "OAUTH2_ApplicationPart.partIdentifier as applicationPart",
           "OAUTH2_ApplicationPart.id as partId",
@@ -312,6 +343,7 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
         .select(
           "OAUTH2_Users.id",
           "OAUTH2_Users.username",
+          "OAUTH2_Subjects.description",
           "OAUTH2_Subjects.id as subjectId",
           "OAUTH2_Subjects.name",
           "OAUTH2_ApplicationPart.partIdentifier as applicationPart",
@@ -385,6 +417,7 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
         .select(
           "OAUTH2_Users.id",
           "OAUTH2_Users.username",
+          "OAUTH2_Subjects.description",
           "OAUTH2_Subjects.id as subjectId",
           "OAUTH2_Subjects.name",
           "OAUTH2_ApplicationPart.partIdentifier as applicationPart",
@@ -482,6 +515,7 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
         .select(
           "OAUTH2_Clients.id",
           "OAUTH2_Clients.identifier",
+          "OAUTH2_Subjects.description",
           "OAUTH2_Subjects.id as subjectId",
           "OAUTH2_Subjects.name",
           "OAUTH2_ApplicationPart.partIdentifier as applicationPart",
@@ -1243,6 +1277,7 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
       const token = jwt.sign(
         {
           data: {
+            id: parsedUser[0].id,
             subjectType: "user",
             username: preUser[0].username,
           },
@@ -1262,6 +1297,310 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
           userId: parsedUser[0].id,
           roles: parsedUser[0].roles,
         },
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        code: 500000,
+        message: error.message,
+      });
+    }
+  };
+
+  controller.token = async (req, res) => {
+    try {
+      const grant_type = req.query.grant_type;
+
+      if (grant_type !== "client_credentials" && grant_type !== "password") {
+        return res.status(400).json({
+          code: 400400,
+          message: "Unsupported grand type",
+        });
+      }
+
+      if (grant_type === "client_credentials") {
+        const { client_id, client_secret } = req.query;
+        const [clientResponse, error] = await controller.handleClientToken(
+          client_id,
+          client_secret
+        );
+
+        if (error === 400001) {
+          return res.status(401).json({
+            code: 400001,
+            message: "Incorrect client secret",
+          });
+        } else if (error === 400011) {
+          return res.status(401).json({
+            code: 400011,
+            message:
+              "Client is not able to generate tokens, use your long live token",
+          });
+        } else if (error === 400004) {
+          return res.status(404).json({
+            code: 400004,
+            message: "Client not found",
+          });
+        } else if (error) {
+          return res.status(500).json({
+            code: 500000,
+            message: error,
+          });
+        }
+
+        return res.status(201).json({
+          message: `Token generated for client ${client_id}`,
+          code: 200000,
+          content: clientResponse,
+        });
+      }
+
+      const { username, password } = req.body;
+
+      const [userResponse, error] = await controller.handleUserToken(
+        username,
+        password
+      );
+
+      if (error === 400001) {
+        return res.status(401).json({
+          code: 400001,
+          message: "Incorrect user password",
+        });
+      } else if (error === 400004) {
+        return res.status(404).json({
+          code: 400004,
+          message: "User not found",
+        });
+      } else if (error) {
+        return res.status(500).json({
+          code: 500000,
+          message: error,
+        });
+      }
+
+      return res.status(201).json({
+        message: `Token generated for user ${username}`,
+        code: 200000,
+        content: userResponse,
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        code: 500000,
+        message: error.message,
+      });
+    }
+  };
+
+  controller.handleClientToken = async (client_id, client_secret) => {
+    try {
+      const client = await knex
+        .table("OAUTH2_Clients")
+        .select(
+          "OAUTH2_Subjects.name",
+          "OAUTH2_Subjects.description",
+          "OAUTH2_Clients.*",
+          "OAUTH2_Roles.identifier as roles"
+        )
+        .join(
+          "OAUTH2_Subjects",
+          "OAUTH2_Clients.subject_id",
+          "OAUTH2_Subjects.id"
+        )
+        .join(
+          "OAUTH2_SubjectRole",
+          "OAUTH2_SubjectRole.subject_id",
+          "OAUTH2_Subjects.id"
+        )
+        .join("OAUTH2_Roles", "OAUTH2_Roles.id", "OAUTH2_SubjectRole.roles_id")
+        .where("OAUTH2_Clients.id", client_id);
+
+      if ((client && client.length === 0) || client === undefined) {
+        return [null, 400004];
+      }
+
+      const helpers = generalHelpers();
+      const parsedClient = helpers.joinSearch(client, "id", "roles");
+
+      if (parsedClient[0].access_token) {
+        return [null, 400011];
+      }
+
+      const correctClientSecret = await bcrypt.compare(
+        client_secret,
+        parsedClient[0].password
+      );
+
+      if (!correctClientSecret) {
+        return [null, 400001];
+      }
+
+      const token = jwt.sign(
+        {
+          data: {
+            id: client_id,
+            subjectType: "client",
+            identifier: parsedClient[0].identifier,
+          },
+        },
+        jwtSecret,
+        {
+          expiresIn: expiresIn,
+        }
+      );
+
+      return [
+        {
+          jwt_token: token,
+          name: parsedClient[0].name,
+          description: parsedClient[0].description,
+          client_id: parsedClient[0].id,
+          identifier: parsedClient[0].identifier,
+          roles: parsedClient[0].roles,
+        },
+        null,
+      ];
+    } catch (error) {
+      return [null, error.message];
+    }
+  };
+
+  controller.handleUserToken = async (username, password) => {
+    try {
+      const user = await knex
+        .table("OAUTH2_Users")
+        .select(
+          "OAUTH2_Subjects.name",
+          "OAUTH2_Subjects.description",
+          "OAUTH2_Users.*",
+          "OAUTH2_Roles.identifier as roles"
+        )
+        .join(
+          "OAUTH2_Subjects",
+          "OAUTH2_Users.subject_id",
+          "OAUTH2_Subjects.id"
+        )
+        .join(
+          "OAUTH2_SubjectRole",
+          "OAUTH2_SubjectRole.subject_id",
+          "OAUTH2_Subjects.id"
+        )
+        .join("OAUTH2_Roles", "OAUTH2_Roles.id", "OAUTH2_SubjectRole.roles_id")
+        .where("OAUTH2_Users.username", username.toLowerCase());
+
+      if ((user && user.length === 0) || user === undefined) {
+        return [null, 400004];
+      }
+
+      const helpers = generalHelpers();
+      const parsedUser = helpers.joinSearch(user, "id", "roles");
+
+      const correctUserPassword = await bcrypt.compare(
+        password,
+        parsedUser[0].password
+      );
+
+      if (!correctUserPassword) {
+        return [null, 400001];
+      }
+
+      const token = jwt.sign(
+        {
+          data: {
+            id: parsedUser[0].id,
+            subjectType: "user",
+            username: parsedUser[0].username,
+          },
+        },
+        jwtSecret,
+        {
+          expiresIn: expiresIn,
+        }
+      );
+
+      return [
+        {
+          jwt_token: token,
+          name: parsedUser[0].name,
+          description: parsedUser[0].description,
+          user_id: parsedUser[0].id,
+          username: parsedUser[0].username,
+          roles: parsedUser[0].roles,
+        },
+        null,
+      ];
+    } catch (error) {
+      return [null, error.message];
+    }
+  };
+
+  controller.revokeToken = async (req, res) => {
+    try {
+      const { client_id, revoke } = req.body;
+
+      const updateResult = await knex
+        .table("OAUTH2_Clients")
+        .update({ revoked: revoke })
+        .where("id", client_id);
+
+      return res.status(201).json({
+        message: `Token revoked`,
+        code: 200000,
+        content: updateResult,
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        code: 500000,
+        message: error.message,
+      });
+    }
+  };
+
+  controller.generateLongLive = async (req, res) => {
+    try {
+      const { remove_long_live } = req.query;
+      const { identifier, client_id } = req.body;
+
+      if (remove_long_live === true || remove_long_live === "true") {
+        const result = await knex
+          .table("OAUTH2_Clients")
+          .update({
+            access_token: null,
+          })
+          .where("OAUTH2_Clients.id", "=", client_id);
+        console.log(result);
+        return res.status(201).json({
+          message: `Token removed`,
+          code: 200001,
+        });
+      }
+
+      const access_token = jwt.sign(
+        {
+          data: {
+            id: client_id,
+            subjectType: "client",
+            identifier: identifier.toLowerCase(),
+          },
+        },
+        jwtSecret
+      );
+
+      const encryptedAccessToken = await bcrypt.hash(access_token, 10);
+
+      await knex
+        .table("OAUTH2_Clients")
+        .update({
+          access_token: encryptedAccessToken,
+        })
+        .where("OAUTH2_Clients.id", "=", client_id);
+
+      return res.status(201).json({
+        message: `Token generated`,
+        code: 200000,
+        content: { access_token },
       });
     } catch (error) {
       console.log(error);

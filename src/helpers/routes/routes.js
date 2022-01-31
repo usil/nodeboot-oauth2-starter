@@ -16,6 +16,7 @@ const authSecureRoutes = (
     validateBodyMiddleware({
       username: { type: "string" },
       password: { type: "string" },
+      description: { type: "string" },
       roles: { type: "array" },
       name: { type: "string" },
     }).validate,
@@ -28,6 +29,7 @@ const authSecureRoutes = (
     "OAUTH2_client:create",
     validateBodyMiddleware({
       identifier: { type: "string" },
+      description: { type: "string" },
       roles: { type: "array" },
       name: { type: "string" },
     }).validate,
@@ -234,6 +236,27 @@ const authSecureRoutes = (
       password: { type: "string" },
     }).validate,
     controller.login
+  );
+
+  // Gets a token
+  expressSecured.obPost("/auth/token", ":", controller.token);
+
+  // Revoke tokens
+  expressSecured.obPut(
+    "/auth/client/revoke",
+    "OAUTH2_client:update",
+    controller.revokeToken
+  );
+
+  // Generate long live
+  expressSecured.obPut(
+    "/auth/client/long-live",
+    "OAUTH2_client:update",
+    validateBodyMiddleware({
+      identifier: { type: "string" },
+      client_id: { type: "number" },
+    }).validate,
+    controller.generateLongLive
   );
 };
 

@@ -98,11 +98,13 @@ const generalHelpers = () => {
       ) {
         const userObject = {
           id: usersBaseArray[index].id,
+          description: usersBaseArray[index].description,
           subjectId: usersBaseArray[index].subjectId,
           name: usersBaseArray[index].name,
           [userNameOrIdentifier]: usersBaseArray[index][userNameOrIdentifier],
           roles: [],
         };
+        console.log(userObject);
         if (!usersBaseArray[index].roleDeleted) {
           userObject.roles.push({
             id: usersBaseArray[index].roleId,
@@ -155,6 +157,7 @@ const generalHelpers = () => {
         }
       }
     }
+    console.log(newArray);
     return newArray;
   };
   helpersObj.parseRoleSearch = (rolesBaseArray) => {
