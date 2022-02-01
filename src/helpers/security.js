@@ -1,5 +1,6 @@
 const helpers = require("./general-helpers.js");
 const jwt = require("jsonwebtoken");
+const bcrypt = require("bcrypt");
 
 const generalHelpers = helpers();
 
@@ -57,6 +58,31 @@ const security = (knex, expressSecured) => {
 
       const userNameOrIdentifier =
         user.subjectType === "user" ? "username" : "identifier";
+
+      if (subjectTableToSearch === "OAUTH2_Clients") {
+        const basicUser = (
+          await knex.table(subjectTableToSearch).select().where("id", user.id)
+        )[0];
+
+        if (basicUser.revoked === true) {
+          return res.status(403).json({
+            code: 403100,
+            message: "Client authorization credentials have been revoked",
+          });
+        }
+        if (basicUser.access_token !== null) {
+          const correctToken = await bcrypt.compare(
+            res.locals.access_token,
+            basicUser.access_token
+          );
+          if (!correctToken) {
+            return res.status(403).json({
+              code: 403100,
+              message: "Your token has has expired or has been revoked",
+            });
+          }
+        }
+      }
 
       const userAllowed = await knex
         .table(subjectTableToSearch)
@@ -138,6 +164,7 @@ const security = (knex, expressSecured) => {
               message: "Incorrect token",
             });
           } else {
+            res.locals.access_token = authToken;
             res.locals.user = decode.data;
           }
           next();
