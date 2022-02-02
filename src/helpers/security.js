@@ -28,7 +28,7 @@ const security = (knex, expressSecured) => {
   securityObj.realGuard = async (req, res, next) => {
     try {
       console.log(req.path);
-
+      console.log(req.baseUrl);
       const exp = securityObj.getExpression(req.path, req.method, req.params);
 
       if (exp === undefined) {
