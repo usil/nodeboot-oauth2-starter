@@ -29,7 +29,7 @@ class ExpressWrapper {
     };
   };
 
-  createSecurePostRouter = (expressApp, expressRouter, guard) => {
+  createSecurePostRouter = (expressApp, expressRouter, routePath, guard) => {
     return (path, allowed, ...handler) => {
       expressApp.set("POST" + "||" + path, allowed);
       return expressRouter.post(path, guard(), ...handler);

@@ -243,20 +243,26 @@ const authSecureRoutes = (
 
   // Revoke tokens
   expressSecured.obPut(
-    "/auth/client/revoke",
+    "/auth/client/:id/revoke",
     "OAUTH2_client:update",
     controller.revokeToken
   );
 
   // Generate long live
   expressSecured.obPut(
-    "/auth/client/long-live",
+    "/auth/client/:id/long-live",
     "OAUTH2_client:update",
     validateBodyMiddleware({
       identifier: { type: "string" },
-      client_id: { type: "number" },
     }).validate,
     controller.generateLongLive
+  );
+
+  // The admin gets the client secret
+  expressSecured.obGet(
+    "/auth/client/:id/long-live",
+    "OAUTH2_client:select",
+    controller.getClientSecret
   );
 };
 

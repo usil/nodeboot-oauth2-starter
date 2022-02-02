@@ -104,7 +104,12 @@ const generalHelpers = () => {
           [userNameOrIdentifier]: usersBaseArray[index][userNameOrIdentifier],
           roles: [],
         };
-        console.log(userObject);
+        if (subjectType === "client") {
+          userObject["hasLongLiveToken"] = usersBaseArray[index].access_token
+            ? true
+            : false;
+          userObject["revoked"] = usersBaseArray[index].revoked;
+        }
         if (!usersBaseArray[index].roleDeleted) {
           userObject.roles.push({
             id: usersBaseArray[index].roleId,

@@ -70,7 +70,7 @@ const tableCreation = (knex, jwtSecret, extraParts = []) => {
         defaultValue: null,
         type: "varchar",
         maxLength: 255,
-        nullable: false,
+        nullable: true,
       },
     },
     OAUTH2_SubjectRole: {

@@ -514,6 +514,8 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
       })
         .select(
           "OAUTH2_Clients.id",
+          "OAUTH2_Clients.revoked",
+          "OAUTH2_Clients.access_token",
           "OAUTH2_Clients.identifier",
           "OAUTH2_Subjects.description",
           "OAUTH2_Subjects.id as subjectId",
@@ -1414,7 +1416,8 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
           "OAUTH2_Subjects.id"
         )
         .join("OAUTH2_Roles", "OAUTH2_Roles.id", "OAUTH2_SubjectRole.roles_id")
-        .where("OAUTH2_Clients.id", client_id);
+        .where("OAUTH2_Clients.id", client_id)
+        .andWhere("OAUTH2_Clients.deleted", false);
 
       if ((client && client.length === 0) || client === undefined) {
         return [null, 400004];
@@ -1487,7 +1490,8 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
           "OAUTH2_Subjects.id"
         )
         .join("OAUTH2_Roles", "OAUTH2_Roles.id", "OAUTH2_SubjectRole.roles_id")
-        .where("OAUTH2_Users.username", username.toLowerCase());
+        .where("OAUTH2_Users.username", username.toLowerCase())
+        .andWhere("OAUTH2_Users.deleted", false);
 
       if ((user && user.length === 0) || user === undefined) {
         return [null, 400004];
@@ -1537,12 +1541,13 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
 
   controller.revokeToken = async (req, res) => {
     try {
-      const { client_id, revoke } = req.body;
+      const { revoke } = req.body;
+      const { id } = req.params;
 
       const updateResult = await knex
         .table("OAUTH2_Clients")
         .update({ revoked: revoke })
-        .where("id", client_id);
+        .where("id", id);
 
       return res.status(201).json({
         message: `Token revoked`,
@@ -1561,7 +1566,8 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
   controller.generateLongLive = async (req, res) => {
     try {
       const { remove_long_live } = req.query;
-      const { identifier, client_id } = req.body;
+      const { identifier } = req.body;
+      const { id } = req.params;
 
       if (remove_long_live === true || remove_long_live === "true") {
         const result = await knex
@@ -1569,7 +1575,7 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
           .update({
             access_token: null,
           })
-          .where("OAUTH2_Clients.id", "=", client_id);
+          .where("OAUTH2_Clients.id", "=", id);
         console.log(result);
         return res.status(201).json({
           message: `Token removed`,
@@ -1595,12 +1601,43 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
         .update({
           access_token: encryptedAccessToken,
         })
-        .where("OAUTH2_Clients.id", "=", client_id);
+        .where("OAUTH2_Clients.id", "=", id);
 
       return res.status(201).json({
         message: `Token generated`,
         code: 200000,
         content: { access_token },
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        code: 500000,
+        message: error.message,
+      });
+    }
+  };
+
+  controller.getClientSecret = async (req, res) => {
+    try {
+      const { id } = req.params;
+      const client = (
+        await knex
+          .table("OAUTH2_Clients")
+          .select("OAUTH2_Clients.client_secret")
+          .where("OAUTH2_Clients.id", id)
+      )[0];
+      if (!client) {
+        return res.status(404).json({
+          code: 400400,
+          message: "Client not found",
+        });
+      }
+      return res.status(200).json({
+        code: 400000,
+        message: "Client secret",
+        content: {
+          clientSecret: client.client_secret,
+        },
       });
     } catch (error) {
       console.log(error);
