@@ -33,6 +33,8 @@ const security = (knex, expressSecured) => {
         req.params
       );
 
+      console.log(exp);
+
       if (exp === undefined) {
         return res
           .status(403)
