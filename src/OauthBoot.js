@@ -47,30 +47,34 @@ class OauthBoot {
     return expressApp;
   }
 
-  bootOauthExpressRouter(expressRouter) {
+  bootOauthExpressRouter(expressRouter, routePath) {
     const expressWrapper = new ExpressWrapper();
 
     expressRouter.obPost = expressWrapper.createSecurePostRouter(
       this.expressApp,
       expressRouter,
+      routePath,
       security(this.knex, this.expressApp).guard
     );
 
     expressRouter.obGet = expressWrapper.createSecureGetRouter(
       this.expressApp,
       expressRouter,
+      routePath,
       security(this.knex, this.expressApp).guard
     );
 
     expressRouter.obPut = expressWrapper.createSecurePutRouter(
       this.expressApp,
       expressRouter,
+      routePath,
       security(this.knex, this.expressApp).guard
     );
 
     expressRouter.obDelete = expressWrapper.createSecureDeleteRouter(
       this.expressApp,
       expressRouter,
+      routePath,
       security(this.knex, this.expressApp).guard
     );
 
