@@ -373,7 +373,8 @@ const tableCreation = (knex, cryptoSecret, extraParts = []) => {
       const encryptedPassword = await bcrypt.hash(password, 10);
       const algorithm = "aes-256-ctr";
       const initVector = crypto.randomBytes(16);
-      const cipher = crypto.createCipheriv(algorithm, cryptoSecret, initVector);
+      const key = Buffer.from(cryptoSecret, "utf-8");
+      const cipher = crypto.createCipheriv(algorithm, key, initVector);
       let encryptedData = cipher.update(clientSecret, "utf-8", "hex");
       // const encryptedSecret = await bcrypt.hash(clientSecret, 10);
 
