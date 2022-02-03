@@ -450,7 +450,7 @@ const tableCreation = (knex, cryptoSecret, extraParts = []) => {
     table.increments("id");
     table.integer("subject_id").unsigned().notNullable();
     table.foreign("subject_id").references("OAUTH2_Subjects.id");
-    table.string("client_secret", 75).notNullable();
+    table.string("client_secret", 175).notNullable();
     table.string("identifier", 100).notNullable().unique();
     table.string("access_token", 255);
     table.boolean("revoked").defaultTo(false);
