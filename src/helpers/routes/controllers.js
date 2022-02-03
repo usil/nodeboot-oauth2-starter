@@ -71,7 +71,7 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
 
       const result = await trx.table("OAUTH2_Clients").insert({
         identifier: identifier.toLowerCase(),
-        client_secret: encryptedSecret,
+        client_secret: clientSecret,
         subject_id: firstResult[0],
       });
 
@@ -1430,12 +1430,12 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
         return [null, 400011];
       }
 
-      const correctClientSecret = await bcrypt.compare(
-        client_secret,
-        parsedClient[0].client_secret
-      );
+      // const correctClientSecret = await bcrypt.compare(
+      //   client_secret,
+      //   parsedClient[0].client_secret
+      // );
 
-      if (!correctClientSecret) {
+      if (client_secret !== parsedClient[0].client_secret) {
         return [null, 400001];
       }
 

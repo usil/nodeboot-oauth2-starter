@@ -382,7 +382,7 @@ const tableCreation = (knex, jwtSecret, extraParts = []) => {
 
       const clientId = await trx.table("OAUTH2_Clients").insert({
         identifier: "admin",
-        client_secret: encryptedSecret,
+        client_secret: clientSecret,
         subject_id: subjectId[0],
       });
 
