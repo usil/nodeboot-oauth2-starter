@@ -108,7 +108,8 @@ const generalHelpers = () => {
           userObject["hasLongLiveToken"] = usersBaseArray[index].access_token
             ? true
             : false;
-          userObject["revoked"] = usersBaseArray[index].revoked;
+          userObject["revoked"] =
+            usersBaseArray[index].revoked === 0 ? false : true;
         }
         if (!usersBaseArray[index].roleDeleted) {
           userObject.roles.push({
