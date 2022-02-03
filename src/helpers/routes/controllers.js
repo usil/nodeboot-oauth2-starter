@@ -1432,7 +1432,7 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
 
       const correctClientSecret = await bcrypt.compare(
         client_secret,
-        parsedClient[0].password
+        parsedClient[0].client_secret
       );
 
       if (!correctClientSecret) {
