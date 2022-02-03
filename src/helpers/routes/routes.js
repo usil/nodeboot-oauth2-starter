@@ -260,7 +260,7 @@ const authSecureRoutes = (
 
   // The admin gets the client secret
   expressSecured.obGet(
-    "/auth/client/:id/long-live",
+    "/auth/client/:id/secret",
     "OAUTH2_client:select",
     controller.getClientSecret
   );
