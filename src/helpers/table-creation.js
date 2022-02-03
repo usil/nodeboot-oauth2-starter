@@ -2,8 +2,9 @@ const fs = require("fs").promises;
 const path = require("path");
 const randomstring = require("randomstring");
 const bcrypt = require("bcrypt");
+const crypto = require("crypto");
 
-const tableCreation = (knex, jwtSecret, extraParts = []) => {
+const tableCreation = (knex, cryptoSecret, extraParts = []) => {
   const tableCreationObj = {};
 
   tableCreationObj.tablesExpected = {
@@ -201,8 +202,6 @@ const tableCreation = (knex, jwtSecret, extraParts = []) => {
     try {
       const columns = await knex.table(tableName).columnInfo();
       const tableColumnInconsistencies = [];
-      console.log("info", tableName);
-      console.log(columns);
       for (const column in columnsToMatch) {
         if (!columns[column]) {
           tableColumnInconsistencies.push(`Column ${column} does not exist`);
@@ -372,7 +371,13 @@ const tableCreation = (knex, jwtSecret, extraParts = []) => {
       const clientSecret = randomstring.generate();
 
       const encryptedPassword = await bcrypt.hash(password, 10);
-      const encryptedSecret = await bcrypt.hash(clientSecret, 10);
+      const algorithm = "aes-256-ctr";
+      const initVector = crypto.randomBytes(16);
+      const cipher = crypto.createCipheriv(algorithm, cryptoSecret, initVector);
+      let encryptedData = cipher.update(clientSecret, "utf-8", "hex");
+      // const encryptedSecret = await bcrypt.hash(clientSecret, 10);
+
+      encryptedData += cipher.final("hex");
 
       await trx.table("OAUTH2_Users").insert({
         username: "admin",
@@ -380,9 +385,11 @@ const tableCreation = (knex, jwtSecret, extraParts = []) => {
         subject_id: subjectId[0],
       });
 
+      const hexedInitVector = initVector.toString("hex");
+
       const clientId = await trx.table("OAUTH2_Clients").insert({
         identifier: "admin",
-        client_secret: clientSecret,
+        client_secret: hexedInitVector + "|.|" + encryptedData,
         subject_id: subjectId[0],
       });
 

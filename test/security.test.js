@@ -1,6 +1,7 @@
 const security = require("../src/helpers/security.js");
 const OauthBoot = require("../src/OauthBoot.js");
 const jwt = require("jsonwebtoken");
+const bcrypt = require("bcrypt");
 
 const searchMockAdmin = [
   { id: 1, applicationPart: "OAUTH2_global", allowedTerm: "*" },
@@ -235,6 +236,10 @@ describe("Security helper works", () => {
   });
 
   test("Complete client workflow", async () => {
+    const bcryptSpy = jest.spyOn(bcrypt, "compare").mockImplementation(() => {
+      return true;
+    });
+
     const mockReq = () => {
       const request = {};
       request.path = "correct-path";
@@ -253,6 +258,19 @@ describe("Security helper works", () => {
       return response;
     };
 
+    const basicUser = {
+      access_token: "access",
+      revoked: false,
+    };
+
+    const mockedKnex = {
+      table: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      join: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis().mockResolvedValueOnce([basicUser]),
+      andWhere: jest.fn().mockResolvedValueOnce(searchMockLocalSelect),
+    };
+
     const mockNext = jest.fn();
 
     const res = mockRes();
@@ -263,17 +281,9 @@ describe("Security helper works", () => {
 
     expect(mockNext).toHaveBeenCalledTimes(1);
 
-    await securityHelper.realGuard(mockReq(), res, mockNext);
+    expect(bcryptSpy).toHaveBeenCalledTimes(1);
 
-    expect(mockNext).toHaveBeenCalledTimes(2);
-
-    await securityHelper.realGuard(mockReq(), res, mockNext);
-
-    expect(res.status).toHaveBeenCalledWith(403);
-    expect(res.json).toHaveBeenCalledWith({
-      code: 403100,
-      message: "Subject not authorized",
-    });
+    bcryptSpy.mockRestore();
   });
 
   test("Complete user workflow", async () => {

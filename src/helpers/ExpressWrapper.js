@@ -38,21 +38,23 @@ class ExpressWrapper {
 
   createSecureGetRouter = (expressApp, expressRouter, routePath, guard) => {
     return (path, allowed, ...handler) => {
-      expressApp.set("GET" + "||" + +`${routePath}${path}`, allowed);
+      console.log("path", `${routePath}${path}`);
+      expressApp.set("GET" + "||" + `${routePath}${path}`, allowed);
+      console.log(expressApp.getMemory);
       return expressRouter.get(path, guard(), ...handler);
     };
   };
 
   createSecurePutRouter = (expressApp, expressRouter, routePath, guard) => {
     return (path, allowed, ...handler) => {
-      expressApp.set("PUT" + "||" + +`${routePath}${path}`, allowed);
+      expressApp.set("PUT" + "||" + `${routePath}${path}`, allowed);
       return expressRouter.put(path, guard(), ...handler);
     };
   };
 
   createSecureDeleteRouter = (expressApp, expressRouter, routePath, guard) => {
     return (path, allowed, ...handler) => {
-      expressApp.set("DELETE" + "||" + +`${routePath}${path}`, allowed);
+      expressApp.set("DELETE" + "||" + `${routePath}${path}`, allowed);
       return expressRouter.delete(path, guard(), ...handler);
     };
   };

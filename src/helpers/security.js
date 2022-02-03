@@ -33,8 +33,6 @@ const security = (knex, expressSecured) => {
         req.params
       );
 
-      console.log(exp);
-
       if (exp === undefined) {
         return res
           .status(403)
@@ -146,7 +144,7 @@ const security = (knex, expressSecured) => {
         .status(403)
         .json({ code: 403100, message: "Subject not authorized" });
     } catch (error) {
-      console.log(error);
+      console.log("this.error", error);
       return res.status(500).json({ code: 500000, message: error.message });
     }
   };

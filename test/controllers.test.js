@@ -3484,9 +3484,9 @@ describe("All auth controllers work", () => {
   test("Generate long live token", async () => {
     const req = {
       query: {},
+      params: { id: 1 },
       body: {
         identifier: "identifier",
-        client_id: 1,
       },
     };
 
@@ -3516,9 +3516,9 @@ describe("All auth controllers work", () => {
       query: {
         remove_long_live: "true",
       },
+      params: { id: 1 },
       body: {
         identifier: "identifier",
-        client_id: 1,
       },
     };
 
@@ -3586,7 +3586,8 @@ describe("All auth controllers work", () => {
       select: jest.fn().mockReturnThis(),
       join: jest.fn().mockReturnThis(),
       update: jest.fn().mockReturnThis(),
-      where: jest.fn().mockResolvedValue([]),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockResolvedValue([]),
     };
 
     const controllers = authControllers(knex, "secret");
@@ -3605,8 +3606,8 @@ describe("All auth controllers work", () => {
       table: jest.fn().mockReturnThis(),
       select: jest.fn().mockReturnThis(),
       join: jest.fn().mockReturnThis(),
-      update: jest.fn().mockReturnThis(),
-      where: jest.fn().mockResolvedValue([1]),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockResolvedValue([1]),
     };
 
     const controllers = authControllers(knex, "secret");
@@ -3624,8 +3625,8 @@ describe("All auth controllers work", () => {
       table: jest.fn().mockReturnThis(),
       select: jest.fn().mockReturnThis(),
       join: jest.fn().mockReturnThis(),
-      update: jest.fn().mockReturnThis(),
-      where: jest.fn().mockResolvedValue([]),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockResolvedValue([]),
     };
 
     const controllers = authControllers(knex, "secret");
@@ -3647,8 +3648,8 @@ describe("All auth controllers work", () => {
       table: jest.fn().mockReturnThis(),
       select: jest.fn().mockReturnThis(),
       join: jest.fn().mockReturnThis(),
-      update: jest.fn().mockReturnThis(),
-      where: jest.fn().mockResolvedValue([1]),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockResolvedValue([1]),
     };
 
     const controllers = authControllers(knex, "secret");
