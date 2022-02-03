@@ -1586,7 +1586,7 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
       const access_token = jwt.sign(
         {
           data: {
-            id: client_id,
+            id: id,
             subjectType: "client",
             identifier: identifier.toLowerCase(),
           },
