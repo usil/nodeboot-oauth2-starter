@@ -38,9 +38,7 @@ class ExpressWrapper {
 
   createSecureGetRouter = (expressApp, expressRouter, routePath, guard) => {
     return (path, allowed, ...handler) => {
-      console.log("path", `${routePath}${path}`);
       expressApp.set("GET" + "||" + `${routePath}${path}`, allowed);
-      console.log(expressApp.getMemory);
       return expressRouter.get(path, guard(), ...handler);
     };
   };

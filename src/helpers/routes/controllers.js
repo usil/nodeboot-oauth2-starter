@@ -1449,7 +1449,7 @@ const authControllers = (
       const algorithm = "aes-256-ctr";
       const keyParts = parsedClient[0].client_secret.split("|.|");
       const encryptedSecret = keyParts[1];
-      const initVector = Buffer.from(keyParts[0], "utf-8");
+      const initVector = Buffer.from(keyParts[0], "hex");
       const key = crypto.scryptSync(cryptoSecret, "salt", 32);
       const decipher = crypto.createDecipheriv(algorithm, key, initVector);
 
