@@ -1457,9 +1457,6 @@ const authControllers = (
 
       decryptedData += decipher.final("utf8");
 
-      console.log("Decrypted message: " + decryptedData);
-      console.log(client_secret);
-
       if (client_secret !== decryptedData) {
         return [null, 400001];
       }
@@ -1645,23 +1642,37 @@ const authControllers = (
   controller.getClientSecret = async (req, res) => {
     try {
       const { id } = req.params;
+
       const client = (
         await knex
           .table("OAUTH2_Clients")
           .select("OAUTH2_Clients.client_secret")
           .where("OAUTH2_Clients.id", id)
       )[0];
+
       if (!client) {
         return res.status(404).json({
           code: 400400,
           message: "Client not found",
         });
       }
+
+      const algorithm = "aes-256-ctr";
+      const keyParts = client.client_secret.split("|.|");
+      const encryptedSecret = keyParts[1];
+      const initVector = Buffer.from(keyParts[0], "hex");
+      const key = crypto.scryptSync(cryptoSecret, "salt", 32);
+      const decipher = crypto.createDecipheriv(algorithm, key, initVector);
+
+      let decryptedData = decipher.update(encryptedSecret, "hex", "utf-8");
+
+      decryptedData += decipher.final("utf8");
+
       return res.status(200).json({
         code: 400000,
         message: "Client secret",
         content: {
-          clientSecret: client.client_secret,
+          clientSecret: decryptedData,
         },
       });
     } catch (error) {
