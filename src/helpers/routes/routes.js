@@ -5,9 +5,15 @@ const authSecureRoutes = (
   knex,
   validateBodyMiddleware,
   jwtSecret,
-  jwtExpirationTime = "24h"
+  jwtExpirationTime = "24h",
+  cryptoSecret = "key"
 ) => {
-  const controller = authControllers(knex, jwtSecret, jwtExpirationTime);
+  const controller = authControllers(
+    knex,
+    jwtSecret,
+    jwtExpirationTime,
+    cryptoSecret
+  );
 
   // create user
   expressSecured.obPost(

@@ -2,8 +2,14 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const generalHelpers = require("../general-helpers.js");
 const randomstring = require("randomstring");
+const crypto = require("crypto");
 
-const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
+const authControllers = (
+  knex,
+  jwtSecret,
+  expiresIn = "24h",
+  cryptoSecret = "key"
+) => {
   const controller = {};
 
   controller.createUser = async (req, res) => {
@@ -62,7 +68,12 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
 
       const clientSecret = randomstring.generate();
 
-      const encryptedSecret = await bcrypt.hash(clientSecret, 10);
+      const algorithm = "aes-256-ctr";
+      const initVector = crypto.randomBytes(16);
+      const key = crypto.scryptSync(cryptoSecret, "salt", 32);
+      const cipher = crypto.createCipheriv(algorithm, key, initVector);
+      let encryptedData = cipher.update(clientSecret, "utf-8", "hex");
+      encryptedData += cipher.final("hex");
 
       const firstResult = await trx.table("OAUTH2_Subjects").insert({
         name,
@@ -71,7 +82,7 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
 
       const result = await trx.table("OAUTH2_Clients").insert({
         identifier: identifier.toLowerCase(),
-        client_secret: clientSecret,
+        client_secret: encryptedData,
         subject_id: firstResult[0],
       });
 
@@ -1435,7 +1446,20 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
       //   parsedClient[0].client_secret
       // );
 
-      if (client_secret !== parsedClient[0].client_secret) {
+      const algorithm = "aes-256-ctr";
+      const keyParts = parsedClient[0].client_secret.split("|.|");
+      const encryptedSecret = keyParts[1];
+      const initVector = Buffer.from(keyParts[0], "utf-8");
+      const key = crypto.scryptSync(cryptoSecret, "salt", 32);
+      const decipher = crypto.createDecipheriv(algorithm, key, initVector);
+
+      let decryptedData = decipher.update(encryptedSecret, "hex", "utf-8");
+
+      decryptedData += decipher.final("utf8");
+
+      console.log("Decrypted message: " + decryptedData);
+
+      if (client_secret !== decryptedData) {
         return [null, 400001];
       }
 

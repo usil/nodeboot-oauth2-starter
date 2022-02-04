@@ -371,13 +371,12 @@ const tableCreation = (knex, cryptoSecret, extraParts = []) => {
       const clientSecret = randomstring.generate();
 
       const encryptedPassword = await bcrypt.hash(password, 10);
+
       const algorithm = "aes-256-ctr";
       const initVector = crypto.randomBytes(16);
       const key = crypto.scryptSync(cryptoSecret, "salt", 32);
       const cipher = crypto.createCipheriv(algorithm, key, initVector);
       let encryptedData = cipher.update(clientSecret, "utf-8", "hex");
-      // const encryptedSecret = await bcrypt.hash(clientSecret, 10);
-
       encryptedData += cipher.final("hex");
 
       await trx.table("OAUTH2_Users").insert({

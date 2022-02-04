@@ -4,7 +4,8 @@ const tableCreation = require("./helpers/table-creation.js");
 const authSecureRoutes = require("./helpers/routes/routes.js");
 const generalHelpers = require("./helpers/general-helpers.js");
 class OauthBoot {
-  constructor(expressApp, knex, jwtSecret, extraParts = []) {
+  constructor(expressApp, knex, jwtSecret, cryptoSecret, extraParts = []) {
+    this.cryptoSecret = cryptoSecret;
     this.expressApp = expressApp;
     this.knex = knex;
     const expressWrapper = new ExpressWrapper();
@@ -14,7 +15,7 @@ class OauthBoot {
     this.expiresIn = "24h";
     this.tableCreationHelper = tableCreation(
       this.knex,
-      this.jwtSecret,
+      this.cryptoSecret,
       this.extraParts
     );
   }
@@ -97,7 +98,8 @@ class OauthBoot {
         this.knex,
         helper.validateBody,
         this.jwtSecret,
-        this.expiresIn
+        this.expiresIn,
+        this.cryptoSecret
       );
     } catch (error) {
       console.log(error);
