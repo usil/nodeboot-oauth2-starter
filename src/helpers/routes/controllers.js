@@ -1458,6 +1458,7 @@ const authControllers = (
       decryptedData += decipher.final("utf8");
 
       console.log("Decrypted message: " + decryptedData);
+      console.log(client_secret);
 
       if (client_secret !== decryptedData) {
         return [null, 400001];
