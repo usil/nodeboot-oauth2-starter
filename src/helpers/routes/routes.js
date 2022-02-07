@@ -63,17 +63,6 @@ const authSecureRoutes = (
     controller.createApplication
   );
 
-  // create application part
-  expressSecured.obPost(
-    "/application/part",
-    "OAUTH2_application:create",
-    validateBodyMiddleware({
-      partIdentifier: { type: "string" },
-      applications_id: { type: "number" },
-    }).validate,
-    controller.createApplicationPart
-  );
-
   // create option
   expressSecured.obPost(
     "/auth/option",
@@ -142,7 +131,7 @@ const authSecureRoutes = (
   // delete role
   expressSecured.obDelete(
     "/auth/role/:id",
-    "OAUTH2_client:delete",
+    "OAUTH2_role:delete",
     controller.deleteRole
   );
 

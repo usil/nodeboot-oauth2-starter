@@ -2,6 +2,7 @@ const authControllers = require("../src/helpers/routes/controllers.js");
 const bcrypt = require("bcrypt");
 const generalHelpers = require("../src/helpers/general-helpers.js");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 
 describe("All auth controllers work", () => {
   test("Creates the user in a transaction", async () => {
@@ -113,9 +114,7 @@ describe("All auth controllers work", () => {
   });
 
   test("Creates the client in a transaction", async () => {
-    const bcryptSpy = jest.spyOn(bcrypt, "hash").mockImplementation(() => {
-      return "hashed";
-    });
+    const cryptoSpy = jest.spyOn(crypto, "randomBytes");
 
     const reqBody = {
       identifier: "identifier",
@@ -139,15 +138,11 @@ describe("All auth controllers work", () => {
     expect(trxMock.table).toHaveBeenCalledWith("OAUTH2_Clients");
     expect(trxMock.table).toHaveBeenCalledWith("OAUTH2_SubjectRole");
     expect(trxMock.table).toHaveBeenCalledWith("OAUTH2_Subjects");
-    expect(bcryptSpy).toHaveBeenCalled();
-    bcryptSpy.mockRestore();
+    expect(cryptoSpy).toHaveBeenCalled();
+    cryptoSpy.mockRestore();
   });
 
   test("Creates the client in a transaction with long live", async () => {
-    const bcryptSpy = jest.spyOn(bcrypt, "hash").mockImplementation(() => {
-      return "hashed";
-    });
-
     const reqBody = {
       identifier: "identifier",
       encryptedAccessToken: "encrypted",
@@ -173,8 +168,6 @@ describe("All auth controllers work", () => {
     expect(trxMock.table).toHaveBeenCalledWith("OAUTH2_SubjectRole");
     expect(trxMock.table).toHaveBeenCalledWith("OAUTH2_Subjects");
     expect(trxMock.where).toHaveBeenCalledWith("OAUTH2_Clients.id", "=", 1);
-    expect(bcryptSpy).toHaveBeenCalled();
-    bcryptSpy.mockRestore();
   });
 
   test("Creates the client in a fails", async () => {
@@ -3638,18 +3631,65 @@ describe("All auth controllers work", () => {
     expect(result).toStrictEqual([null, 400004]);
   });
 
+  test("Handle client token function", async () => {
+    const client_id = "username";
+    const client_secret = "password";
+
+    const knex = {
+      table: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      join: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest
+        .fn()
+        .mockResolvedValue([
+          { id: 1, roles: "role", client_secret: "x|.|password" },
+        ]),
+    };
+
+    const decipherSpy = jest
+      .spyOn(crypto, "createDecipheriv")
+      .mockImplementation(() => {
+        return {
+          update: jest.fn().mockReturnValue("password"),
+          final: jest.fn().mockReturnValue(""),
+        };
+      });
+
+    const controllers = authControllers(knex, "secret");
+    const result = await controllers.handleClientToken(
+      client_id,
+      client_secret
+    );
+
+    expect(decipherSpy).toHaveBeenCalled();
+    expect(result[1]).toBe(null);
+  });
+
   test("Handle client token 400001", async () => {
     const client_id = "username";
     const client_secret = "password";
     const bcryptSpy = jest.spyOn(bcrypt, "compare").mockImplementation(() => {
       return false;
     });
+    const bufferSpy = jest.spyOn(Buffer, "from");
+    const decipherSpy = jest
+      .spyOn(crypto, "createDecipheriv")
+      .mockImplementation(() => {
+        return {
+          update: jest.fn().mockReturnValue("u"),
+          final: jest.fn().mockReturnValue("U"),
+        };
+      });
+
     const knex = {
       table: jest.fn().mockReturnThis(),
       select: jest.fn().mockReturnThis(),
       join: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
-      andWhere: jest.fn().mockResolvedValue([1]),
+      andWhere: jest
+        .fn()
+        .mockResolvedValue([{ id: 1, roles: "role", client_secret: "x|.|y" }]),
     };
 
     const controllers = authControllers(knex, "secret");
@@ -3659,6 +3699,84 @@ describe("All auth controllers work", () => {
     );
 
     expect(result).toStrictEqual([null, 400001]);
+    expect(bufferSpy).toHaveBeenCalled();
+    expect(decipherSpy).toHaveBeenCalled();
+
     bcryptSpy.mockRestore();
+    bufferSpy.mockRestore();
+    decipherSpy.mockRestore();
+  });
+
+  test("Get client secret", async () => {
+    const req = {
+      params: {
+        id: 1,
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knex = {
+      table: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      where: jest
+        .fn()
+        .mockResolvedValue([{ id: 1, roles: "role", client_secret: "x|.|y" }]),
+    };
+
+    const decipherSpy = jest
+      .spyOn(crypto, "createDecipheriv")
+      .mockImplementation(() => {
+        return {
+          update: jest.fn().mockReturnValue("u"),
+          final: jest.fn().mockReturnValue("U"),
+        };
+      });
+
+    const controllers = authControllers(knex, "secret");
+    await controllers.getClientSecret(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      code: 200000,
+      message: "Client secret",
+      content: {
+        clientSecret: "uU",
+      },
+    });
+
+    decipherSpy.mockRestore();
+  });
+
+  test("Revoke Token Works", async () => {
+    const req = {
+      body: {
+        revoke: false,
+      },
+      params: {
+        id: 1,
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knex = {
+      table: jest.fn().mockReturnThis(),
+      update: jest.fn().mockReturnThis(),
+      where: jest.fn(),
+    };
+
+    const controllers = authControllers(knex, "secret");
+    await controllers.revokeToken(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(201);
+
+    expect(knex.update).toHaveBeenCalledWith({ revoked: false });
   });
 });

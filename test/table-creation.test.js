@@ -130,7 +130,7 @@ describe("Table creation works accordingly", () => {
 
     expect(fsSpy).toHaveBeenCalledTimes(1);
 
-    expect(bcryptSpy).toHaveBeenCalledTimes(2);
+    expect(bcryptSpy).toHaveBeenCalledTimes(1);
 
     bcryptSpy.mockRestore();
     fsSpy.mockRestore();

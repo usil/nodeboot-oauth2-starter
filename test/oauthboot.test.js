@@ -32,6 +32,7 @@ describe("OauthBoot class and his functions work as required", () => {
       expressMock(),
       mockedKnex,
       jwtSecret,
+      "crypto",
       extraParts
     );
 

@@ -19,11 +19,15 @@ const authControllers = (
 
       req.body.encryptedPassword = encryptedPassword;
 
+      let userId = -1;
+
       await knex.transaction(async (trx) => {
-        await controller.createUserTransaction(trx, req.body);
+        userId = await controller.createUserTransaction(trx, req.body);
       });
 
-      return res.status(201).json({ code: 200000, message: "User added" });
+      return res
+        .status(201)
+        .json({ code: 200001, message: "User added", content: { userId } });
     } catch (error) {
       console.log(error);
       return res.status(500).json({
@@ -42,7 +46,7 @@ const authControllers = (
         description,
       });
 
-      await trx.table("OAUTH2_Users").insert({
+      const userId = await trx.table("OAUTH2_Users").insert({
         username: username.toLowerCase(),
         password: encryptedPassword,
         subject_id: firstResult[0],
@@ -53,6 +57,8 @@ const authControllers = (
       });
 
       await trx.table("OAUTH2_SubjectRole").insert(subjectRolesToInsert);
+
+      return userId[0];
     } catch (error) {
       throw new Error(error.message);
     }
@@ -138,7 +144,7 @@ const authControllers = (
       });
 
       return res.status(201).json({
-        code: 200000,
+        code: 200001,
         message: "Client added",
         content: response,
       });
@@ -153,10 +159,14 @@ const authControllers = (
 
   controller.createRole = async (req, res) => {
     try {
+      let roleId;
+
       await knex.transaction(async (trx) => {
-        await controller.createRoleTransaction(trx, req.body);
+        roleId = await controller.createRoleTransaction(trx, req.body);
       });
-      return res.status(201).json({ code: 200000, message: "Role added" });
+      return res
+        .status(201)
+        .json({ code: 200001, message: "Role added", content: { roleId } });
     } catch (error) {
       console.log(error);
       return res.status(500).json({
@@ -182,6 +192,8 @@ const authControllers = (
         }
       }
       await trx.table("OAUTH2_RoleOption").insert(insertRoleOptions);
+
+      return insertResult[0];
     } catch (error) {
       throw new Error(error.message);
     }
@@ -190,10 +202,14 @@ const authControllers = (
   controller.createApplication = async (req, res) => {
     try {
       const { identifier } = req.body;
-      await knex.table("OAUTH2_Applications").insert({ identifier });
-      return res
-        .status(201)
-        .json({ code: 200000, message: "Application added" });
+      const applicationId = await knex
+        .table("OAUTH2_Applications")
+        .insert({ identifier });
+      return res.status(201).json({
+        code: 200001,
+        message: "Application added",
+        content: { applicationId: applicationId[0] },
+      });
     } catch (error) {
       console.log(error);
       return res.status(500).json({
@@ -206,13 +222,17 @@ const authControllers = (
   controller.createApplicationPart = async (req, res) => {
     try {
       const { partIdentifier, applications_id } = req.body;
-      await knex.table("OAUTH2_ApplicationPart").insert({
-        partIdentifier,
-        applications_id,
+      const applicationPartId = await knex
+        .table("OAUTH2_ApplicationPart")
+        .insert({
+          partIdentifier,
+          applications_id,
+        });
+      return res.status(201).json({
+        code: 200001,
+        message: "Application part added",
+        content: applicationPartId[0],
       });
-      return res
-        .status(201)
-        .json({ code: 200000, message: "Application part added" });
     } catch (error) {
       console.log(error);
       return res.status(500).json({
@@ -225,11 +245,15 @@ const authControllers = (
   controller.createOption = async (req, res) => {
     try {
       const { allowed, applicationPart_id } = req.body;
-      await knex.table("OAUTH2_Options").insert({
+      const optionId = await knex.table("OAUTH2_Options").insert({
         allowed,
         applicationPart_id,
       });
-      return res.status(201).json({ code: 200000, message: "Option added" });
+      return res.status(201).json({
+        code: 200001,
+        message: "Option added",
+        content: { optionId: optionId[0] },
+      });
     } catch (error) {
       console.log(error);
       return res.status(500).json({
@@ -673,7 +697,7 @@ const authControllers = (
         await controller.deleteUserTransaction(trx, subjectId);
       });
 
-      return res.status(201).json({ code: 200000, message: "User deleted" });
+      return res.status(201).json({ code: 200001, message: "User deleted" });
     } catch (error) {
       return res.status(500).json({
         code: 500000,
@@ -724,7 +748,7 @@ const authControllers = (
         .where({ id: roleId })
         .update("deleted", true);
 
-      return res.status(201).json({ code: 200001, message: "Client deleted" });
+      return res.status(201).json({ code: 200001, message: "Role deleted" });
     } catch (error) {
       return res.status(500).json({
         code: 500000,
@@ -750,7 +774,7 @@ const authControllers = (
         .where({ id: subjectId })
         .update({ name });
 
-      return res.status(201).json({ code: 200000, message: "User updated" });
+      return res.status(201).json({ code: 200001, message: "User updated" });
     } catch (error) {
       return res.status(500).json({
         code: 500000,
@@ -1091,7 +1115,7 @@ const authControllers = (
       });
 
       return res.status(201).json({
-        code: 200000,
+        code: 200001,
         message: "Role options updated",
       });
     } catch (error) {
@@ -1150,7 +1174,7 @@ const authControllers = (
       });
 
       return res.status(201).json({
-        code: 200000,
+        code: 200001,
         message: "Part options updated",
       });
     } catch (error) {
@@ -1181,7 +1205,13 @@ const authControllers = (
 
       await knex.table("OAUTH2_Options").insert(optionsToInsert);
 
-      return res.status(201).json({ code: 200000, message: "Part added" });
+      return res.status(201).json({
+        code: 200001,
+        message: "Application part added",
+        content: {
+          applicationPartId: insertResult[0],
+        },
+      });
     } catch (error) {
       console.log(error);
       return res.status(500).json({
@@ -1216,8 +1246,8 @@ const authControllers = (
       });
 
       return res.status(201).json({
-        code: 200000,
-        message: "Part options updated",
+        code: 200001,
+        message: "Part deleted",
       });
     } catch (error) {
       console.log(error);
@@ -1441,11 +1471,6 @@ const authControllers = (
         return [null, 400011];
       }
 
-      // const correctClientSecret = await bcrypt.compare(
-      //   client_secret,
-      //   parsedClient[0].client_secret
-      // );
-
       const algorithm = "aes-256-ctr";
       const keyParts = parsedClient[0].client_secret.split("|.|");
       const encryptedSecret = keyParts[1];
@@ -1456,6 +1481,9 @@ const authControllers = (
       let decryptedData = decipher.update(encryptedSecret, "hex", "utf-8");
 
       decryptedData += decipher.final("utf8");
+
+      console.log(decryptedData);
+      console.log("client_secret", client_secret + decryptedData);
 
       if (client_secret !== decryptedData) {
         return [null, 400001];
@@ -1572,8 +1600,8 @@ const authControllers = (
         .where("id", id);
 
       return res.status(201).json({
-        message: `Token revoked`,
-        code: 200000,
+        message: `Token ${revoke ? "revoked" : "rectified"}`,
+        code: 200001,
         content: updateResult,
       });
     } catch (error) {
@@ -1669,7 +1697,7 @@ const authControllers = (
       decryptedData += decipher.final("utf8");
 
       return res.status(200).json({
-        code: 400000,
+        code: 200000,
         message: "Client secret",
         content: {
           clientSecret: decryptedData,
