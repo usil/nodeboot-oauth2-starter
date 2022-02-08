@@ -161,7 +161,7 @@ describe("Table creation works accordingly", () => {
     expect(knexTable.boolean).toHaveBeenCalledWith("deleted");
   });
 
-  test("Create applications parts table", () => {
+  test("Create applications resource table", () => {
     const mockKnexTable = () => {
       const knex = {};
       knex.increments = jest.fn();
@@ -182,16 +182,16 @@ describe("Table creation works accordingly", () => {
     const knex = mockKnexCreationSchema();
     const tableCreationHelper = tableCreation(knex, "secret");
 
-    tableCreationHelper.createApplicationPartTable(knexTable);
+    tableCreationHelper.createApplicationResourceTable(knexTable);
 
     expect(knexTable.increments).toHaveBeenCalledWith("id");
-    expect(knexTable.string).toHaveBeenCalledWith("partIdentifier", 100);
+    expect(knexTable.string).toHaveBeenCalledWith("resourceIdentifier", 100);
     expect(knexTable.integer).toHaveBeenCalledWith("applications_id");
     expect(knexTable.foreign).toHaveBeenCalledWith("applications_id");
     expect(knexTable.references).toHaveBeenCalledWith("OAUTH2_Applications.id");
     expect(knexTable.timestamps).toHaveBeenCalledWith(true, true);
     expect(knexTable.boolean).toHaveBeenCalledWith("deleted");
-    expect(knexTable.unique).toHaveBeenCalledWith(["partIdentifier", "id"]);
+    expect(knexTable.unique).toHaveBeenCalledWith(["resourceIdentifier", "id"]);
   });
 
   test("Create subjects table", () => {
@@ -320,9 +320,9 @@ describe("Table creation works accordingly", () => {
 
     expect(knexTable.string).toHaveBeenCalledWith("allowed", 75);
 
-    expect(knexTable.foreign).toHaveBeenCalledWith("applicationPart_id");
+    expect(knexTable.foreign).toHaveBeenCalledWith("applicationResource_id");
     expect(knexTable.references).toHaveBeenCalledWith(
-      "OAUTH2_ApplicationPart.id"
+      "OAUTH2_ApplicationResource.id"
     );
   });
 

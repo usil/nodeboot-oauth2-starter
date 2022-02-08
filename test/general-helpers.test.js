@@ -23,35 +23,35 @@ describe("All general helpers function accordingly", () => {
     expect(joinResult[0].similarField.length).toBe(4);
   });
 
-  test("Part search parsed works", () => {
-    const partBaseArray = [
+  test("Resource search parsed works", () => {
+    const resourceBaseArray = [
       {
-        partId: 1,
-        applicationPartName: "partName1",
+        resourceId: 1,
+        applicationResourceName: "resourceName1",
         allowed: "*",
         optionId: 1,
       },
       {
-        partId: 2,
-        applicationPartName: "partName2",
+        resourceId: 2,
+        applicationResourceName: "resourceName2",
         allowed: "*",
         optionId: 2,
       },
       {
-        partId: 3,
-        applicationPartName: "partName3",
+        resourceId: 3,
+        applicationResourceName: "resourceName3",
         allowed: "select",
         optionId: 3,
       },
       {
-        partId: 3,
-        applicationPartName: "partName3",
+        resourceId: 3,
+        applicationResourceName: "resourceName3",
         allowed: "create",
         optionId: 4,
       },
     ];
 
-    const parsedSearch = generalHelpers.parsePartSearch(partBaseArray);
+    const parsedSearch = generalHelpers.parseResourceSearch(resourceBaseArray);
 
     expect(parsedSearch[0].id).toBe(1);
 
@@ -59,7 +59,7 @@ describe("All general helpers function accordingly", () => {
 
     expect(parsedSearch[2].id).toBe(3);
 
-    expect(parsedSearch[2].applicationPartName).toBe("partName3");
+    expect(parsedSearch[2].applicationResourceName).toBe("resourceName3");
   });
 
   test("Role search parsed works", () => {
@@ -67,32 +67,32 @@ describe("All general helpers function accordingly", () => {
       {
         id: 1,
         identifier: "rol1",
-        partId: 1,
-        applicationPart: "partName1",
+        resourceId: 1,
+        applicationResource: "resourceName1",
         allowed: "*",
         optionId: 1,
       },
       {
         id: 1,
         identifier: "rol1",
-        partId: 1,
-        applicationPart: "partName1",
+        resourceId: 1,
+        applicationResource: "resourceName1",
         allowed: "select",
         optionId: 2,
       },
       {
         id: 2,
         identifier: "rol2",
-        partId: 1,
-        applicationPart: "partName2",
+        resourceId: 1,
+        applicationResource: "resourceName2",
         allowed: "*",
         optionId: 3,
       },
       {
         id: 2,
         identifier: "rol2",
-        partId: 1,
-        applicationPart: "partName3",
+        resourceId: 1,
+        applicationResource: "resourceName3",
         allowed: "create",
         optionId: 4,
       },
@@ -102,9 +102,9 @@ describe("All general helpers function accordingly", () => {
 
     expect(parsedSearch[1].id).toBe(2);
 
-    expect(parsedSearch[0].parts.length).toBe(1);
+    expect(parsedSearch[0].resources.length).toBe(1);
 
-    expect(parsedSearch[1].parts.length).toBe(2);
+    expect(parsedSearch[1].resources.length).toBe(2);
   });
 
   test("Subject search parsed works", () => {
@@ -118,8 +118,8 @@ describe("All general helpers function accordingly", () => {
         roleDeleted: false,
         roleId: 1,
         roleIdentifier: "rol1",
-        partId: 1,
-        applicationPart: "part1",
+        resourceId: 1,
+        applicationResource: "resource1",
         allowed: "*",
       },
       {
@@ -131,8 +131,8 @@ describe("All general helpers function accordingly", () => {
         roleDeleted: false,
         roleId: 1,
         roleIdentifier: "rol1",
-        partId: 1,
-        applicationPart: "part1",
+        resourceId: 1,
+        applicationResource: "resource1",
         allowed: "select",
       },
       {
@@ -144,8 +144,8 @@ describe("All general helpers function accordingly", () => {
         roleDeleted: false,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 3,
-        applicationPart: "part3",
+        resourceId: 3,
+        applicationResource: "resource3",
         allowed: "select",
       },
       {
@@ -157,8 +157,8 @@ describe("All general helpers function accordingly", () => {
         description: "desc",
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 4,
-        applicationPart: "part4",
+        resourceId: 4,
+        applicationResource: "resource4",
         allowed: "*",
       },
       {
@@ -170,8 +170,8 @@ describe("All general helpers function accordingly", () => {
         roleDeleted: true,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 4,
-        applicationPart: "part4",
+        resourceId: 4,
+        applicationResource: "resource4",
         allowed: "*",
       },
     ];
@@ -186,8 +186,8 @@ describe("All general helpers function accordingly", () => {
         roleDeleted: false,
         roleId: 1,
         roleIdentifier: "rol1",
-        partId: 1,
-        applicationPart: "part1",
+        resourceId: 1,
+        applicationResource: "resource1",
         allowed: "*",
       },
       {
@@ -199,8 +199,8 @@ describe("All general helpers function accordingly", () => {
         roleDeleted: false,
         roleId: 1,
         roleIdentifier: "rol1",
-        partId: 1,
-        applicationPart: "part1",
+        resourceId: 1,
+        applicationResource: "resource1",
         allowed: "select",
       },
       {
@@ -212,8 +212,8 @@ describe("All general helpers function accordingly", () => {
         roleDeleted: false,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 3,
-        applicationPart: "part3",
+        resourceId: 3,
+        applicationResource: "resource3",
         allowed: "select",
       },
       {
@@ -225,8 +225,8 @@ describe("All general helpers function accordingly", () => {
         roleDeleted: false,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 4,
-        applicationPart: "part4",
+        resourceId: 4,
+        applicationResource: "resource4",
         allowed: "*",
       },
       {
@@ -238,8 +238,8 @@ describe("All general helpers function accordingly", () => {
         roleDeleted: false,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 4,
-        applicationPart: "part4",
+        resourceId: 4,
+        applicationResource: "resource4",
         allowed: "*",
       },
       {
@@ -251,8 +251,8 @@ describe("All general helpers function accordingly", () => {
         roleDeleted: true,
         roleId: 3,
         roleIdentifier: "rol3",
-        partId: 5,
-        applicationPart: "part5",
+        resourceId: 5,
+        applicationResource: "resource5",
         allowed: "*",
       },
     ];
@@ -266,9 +266,9 @@ describe("All general helpers function accordingly", () => {
 
     expect(parsedSearch[0].id).toBe(1);
 
-    expect(parsedSearch[0].roles[0].parts.length).toBe(1);
+    expect(parsedSearch[0].roles[0].resources.length).toBe(1);
 
-    expect(parsedSearch[0].roles[0].parts[0].allowed.length).toBe(2);
+    expect(parsedSearch[0].roles[0].resources[0].allowed.length).toBe(2);
 
     expect(parsedSearch[2]).toBe(undefined);
 
@@ -278,9 +278,9 @@ describe("All general helpers function accordingly", () => {
 
     expect(parsedSearchClient[0].id).toBe(1);
 
-    expect(parsedSearchClient[0].roles[0].parts.length).toBe(1);
+    expect(parsedSearchClient[0].roles[0].resources.length).toBe(1);
 
-    expect(parsedSearchClient[0].roles[0].parts[0].allowed.length).toBe(2);
+    expect(parsedSearchClient[0].roles[0].resources[0].allowed.length).toBe(2);
 
     expect(parsedSearchClient[2]).toBe(undefined);
 

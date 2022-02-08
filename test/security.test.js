@@ -4,23 +4,23 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 
 const searchMockAdmin = [
-  { id: 1, applicationPart: "OAUTH2_global", allowedTerm: "*" },
+  { id: 1, applicationResource: "OAUTH2_global", allowedTerm: "*" },
 ];
 
 const searchMockLocalAdmin = [
-  { id: 1, applicationPart: "allowed", allowedTerm: "*" },
+  { id: 1, applicationResource: "allowed", allowedTerm: "*" },
 ];
 
 const searchMockNotAllowed = [
-  { id: 1, applicationPart: "not-allowed", allowedTerm: "*" },
+  { id: 1, applicationResource: "not-allowed", allowedTerm: "*" },
 ];
 
-const searchMockPartTwo = [
-  { id: 1, applicationPart: "OAUTH2_global", allowedTerm: "*" },
+const searchMockResourceTwo = [
+  { id: 1, applicationResource: "OAUTH2_global", allowedTerm: "*" },
 ];
 
 const searchMockLocalSelect = [
-  { id: 1, applicationPart: "allowed", allowedTerm: "select" },
+  { id: 1, applicationResource: "allowed", allowedTerm: "select" },
 ];
 
 const mockedKnex = {
@@ -34,12 +34,12 @@ const mockedKnex = {
     .mockResolvedValueOnce(searchMockAdmin)
     .mockResolvedValueOnce(searchMockLocalAdmin)
     .mockResolvedValueOnce(searchMockNotAllowed)
-    .mockResolvedValueOnce(searchMockPartTwo)
+    .mockResolvedValueOnce(searchMockResourceTwo)
     .mockResolvedValueOnce(searchMockLocalSelect),
 };
 
 const jwtSecret = "secret";
-const extraParts = ["extra"];
+const extraResources = ["extra"];
 
 const expressMock = () => {
   const express = { getMemory: {} };
@@ -82,7 +82,7 @@ describe("Security helper works", () => {
     expressMock(),
     mockedKnex,
     jwtSecret,
-    extraParts
+    extraResources
   );
 
   oauthBoot.expressSecured.obPost("some-path", "allowed", () => {

@@ -4,7 +4,7 @@ const randomstring = require("randomstring");
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 
-const tableCreation = (knex, cryptoSecret, extraParts = []) => {
+const tableCreation = (knex, cryptoSecret, extraResources = []) => {
   const tableCreationObj = {};
 
   tableCreationObj.tablesExpected = {
@@ -149,7 +149,7 @@ const tableCreation = (knex, cryptoSecret, extraParts = []) => {
         maxLength: null,
         nullable: false,
       },
-      applicationPart_id: {
+      applicationResource_id: {
         defaultValue: null,
         type: "int",
         maxLength: null,
@@ -162,14 +162,14 @@ const tableCreation = (knex, cryptoSecret, extraParts = []) => {
         nullable: false,
       },
     },
-    OAUTH2_ApplicationPart: {
+    OAUTH2_ApplicationResource: {
       id: {
         defaultValue: null,
         type: "int",
         maxLength: null,
         nullable: false,
       },
-      partIdentifier: {
+      resourceIdentifier: {
         defaultValue: null,
         type: "varchar",
         maxLength: 100,
@@ -270,74 +270,77 @@ const tableCreation = (knex, cryptoSecret, extraParts = []) => {
         identifier: "OAUTH2_master",
       });
 
-      const applicationPartIds = [];
+      const applicationResourceIds = [];
 
-      const extraPartsToInsert = extraParts.map((part) => {
-        return { applications_id: applicationId[0], partIdentifier: part };
+      const extraResourceToInsert = extraResources.map((resource) => {
+        return {
+          applications_id: applicationId[0],
+          resourceIdentifier: resource,
+        };
       });
 
-      const partsToInsert = [
+      const resourcesToInsert = [
         {
           applications_id: applicationId[0],
-          partIdentifier: "OAUTH2_global",
+          resourceIdentifier: "OAUTH2_global",
         },
         {
           applications_id: applicationId[0],
-          partIdentifier: "OAUTH2_user",
+          resourceIdentifier: "OAUTH2_user",
         },
         {
           applications_id: applicationId[0],
-          partIdentifier: "OAUTH2_client",
+          resourceIdentifier: "OAUTH2_client",
         },
         {
           applications_id: applicationId[0],
-          partIdentifier: "OAUTH2_application",
+          resourceIdentifier: "OAUTH2_application",
         },
         {
           applications_id: applicationId[0],
-          partIdentifier: "OAUTH2_role",
+          resourceIdentifier: "OAUTH2_role",
         },
         {
           applications_id: applicationId[0],
-          partIdentifier: "OAUTH2_option",
+          resourceIdentifier: "OAUTH2_option",
         },
       ];
 
-      for (const part of [...partsToInsert, ...extraPartsToInsert]) {
-        const applicationPartId = await trx
-          .table("OAUTH2_ApplicationPart")
-          .insert(part);
-        applicationPartIds.push(applicationPartId[0]);
+      for (const resource of [...resourcesToInsert, ...extraResourceToInsert]) {
+        const applicationResourceId = await trx
+          .table("OAUTH2_ApplicationResource")
+          .insert(resource);
+        applicationResourceIds.push(applicationResourceId[0]);
       }
 
       const oauthInsert = [];
 
-      for (let index = 0; index < applicationPartIds.length; index++) {
+      for (let index = 0; index < applicationResourceIds.length; index++) {
         if (index === 0) {
           oauthInsert.push({
-            applicationPart_id: applicationPartIds[index],
+            applicationResource_id: applicationResourceIds[index],
             allowed: "*",
           });
         } else {
           oauthInsert.push(
             {
-              applicationPart_id: applicationPartIds[index],
+              applicationResource_id: applicationResourceIds[index],
               allowed: "*",
             },
             {
-              applicationPart_id: applicationPartIds[index],
+              applicationResource_id: applicationResourceIds[index],
               allowed: "create",
             },
             {
-              applicationPart_id: applicationPartIds[index],
+              applicationResource_id: applicationResourceIds[index],
               allowed: "update",
             },
             {
-              applicationPart_id: applicationPartIds[index],
+              applicationResource_id: applicationResourceIds[index],
               allowed: "delete",
             },
             {
-              applicationPart_id: applicationPartIds[index],
+              applicationResource_id: applicationResourceIds[index],
               allowed: "select",
             }
           );
@@ -417,13 +420,13 @@ const tableCreation = (knex, cryptoSecret, extraParts = []) => {
     table.timestamps(true, true);
   };
 
-  tableCreationObj.createApplicationPartTable = (table) => {
+  tableCreationObj.createApplicationResourceTable = (table) => {
     table.increments("id");
-    table.string("partIdentifier", 100).notNullable();
+    table.string("resourceIdentifier", 100).notNullable();
     table.integer("applications_id").unsigned().notNullable();
     table.foreign("applications_id").references("OAUTH2_Applications.id");
     table.boolean("deleted").defaultTo(false);
-    table.unique(["partIdentifier", "id"]);
+    table.unique(["resourceIdentifier", "id"]);
     table.timestamps(true, true);
   };
 
@@ -460,8 +463,10 @@ const tableCreation = (knex, cryptoSecret, extraParts = []) => {
   tableCreationObj.createOptionsTable = (table) => {
     table.increments("id");
     table.string("allowed", 75).notNullable();
-    table.integer("applicationPart_id").unsigned().notNullable();
-    table.foreign("applicationPart_id").references("OAUTH2_ApplicationPart.id");
+    table.integer("applicationResource_id").unsigned().notNullable();
+    table
+      .foreign("applicationResource_id")
+      .references("OAUTH2_ApplicationResource.id");
     table.boolean("deleted").defaultTo(false);
     table.timestamps(true, true);
   };
@@ -501,8 +506,8 @@ const tableCreation = (knex, cryptoSecret, extraParts = []) => {
       );
 
       await knex.schema.createTable(
-        "OAUTH2_ApplicationPart",
-        tableCreationObj.createApplicationPartTable
+        "OAUTH2_ApplicationResource",
+        tableCreationObj.createApplicationResourceTable
       );
 
       await knex.schema.createTable(
@@ -557,7 +562,7 @@ const tableCreation = (knex, cryptoSecret, extraParts = []) => {
         "OAUTH2_RoleOption",
         "OAUTH2_Roles",
         "OAUTH2_Options",
-        "OAUTH2_ApplicationPart",
+        "OAUTH2_ApplicationResource",
         "OAUTH2_Applications",
       ];
       for (const tableName of tablesToDropInOrder) {

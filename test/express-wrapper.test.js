@@ -68,7 +68,7 @@ describe("Express Wrapper and his functions work as required", () => {
     router.obPost = expressWrapper.createSecurePostRouter(
       fullMock,
       router,
-      "basePart/",
+      "baseResource/",
       mockGuard
     );
 
@@ -76,7 +76,9 @@ describe("Express Wrapper and his functions work as required", () => {
       return "handle";
     });
 
-    expect(fullMock.get("POST" + "||" + "basePart/somePath")).toBe("allowed");
+    expect(fullMock.get("POST" + "||" + "baseResource/somePath")).toBe(
+      "allowed"
+    );
     expect(router.post).toHaveBeenCalled();
   });
 
@@ -111,7 +113,7 @@ describe("Express Wrapper and his functions work as required", () => {
     router.obGet = expressWrapper.createSecureGetRouter(
       fullMock,
       router,
-      "basePart/",
+      "baseResource/",
       mockGuard
     );
 
@@ -119,7 +121,9 @@ describe("Express Wrapper and his functions work as required", () => {
       return "handle";
     });
 
-    expect(fullMock.get("GET" + "||" + "basePart/somePath")).toBe("allowed");
+    expect(fullMock.get("GET" + "||" + "baseResource/somePath")).toBe(
+      "allowed"
+    );
     expect(router.get).toHaveBeenCalled();
   });
 
@@ -154,7 +158,7 @@ describe("Express Wrapper and his functions work as required", () => {
     router.obPut = expressWrapper.createSecurePutRouter(
       fullMock,
       router,
-      "basePart/",
+      "baseResource/",
       mockGuard
     );
 
@@ -162,7 +166,9 @@ describe("Express Wrapper and his functions work as required", () => {
       return "handle";
     });
 
-    expect(fullMock.get("PUT" + "||" + "basePart/somePath")).toBe("allowed");
+    expect(fullMock.get("PUT" + "||" + "baseResource/somePath")).toBe(
+      "allowed"
+    );
     expect(router.put).toHaveBeenCalled();
   });
 
@@ -197,7 +203,7 @@ describe("Express Wrapper and his functions work as required", () => {
     router.obPut = expressWrapper.createSecureDeleteRouter(
       fullMock,
       router,
-      "basePart/",
+      "baseResource/",
       mockGuard
     );
 
@@ -205,7 +211,9 @@ describe("Express Wrapper and his functions work as required", () => {
       return "handle";
     });
 
-    expect(fullMock.get("DELETE" + "||" + "basePart/somePath")).toBe("allowed");
+    expect(fullMock.get("DELETE" + "||" + "baseResource/somePath")).toBe(
+      "allowed"
+    );
     expect(router.delete).toHaveBeenCalled();
   });
 });

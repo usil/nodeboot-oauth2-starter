@@ -92,7 +92,7 @@ const security = (knex, expressSecured) => {
         .table(subjectTableToSearch)
         .select(
           "OAUTH2_Options.allowed as allowedTerm",
-          "OAUTH2_ApplicationPart.partIdentifier as applicationPart"
+          "OAUTH2_ApplicationResource.resourceIdentifier as applicationResource"
         )
         .join(
           "OAUTH2_SubjectRole",
@@ -111,9 +111,9 @@ const security = (knex, expressSecured) => {
           "OAUTH2_RoleOption.options_id"
         )
         .join(
-          "OAUTH2_ApplicationPart",
-          `OAUTH2_ApplicationPart.id`,
-          "OAUTH2_Options.applicationPart_id"
+          "OAUTH2_ApplicationResource",
+          `OAUTH2_ApplicationResource.id`,
+          "OAUTH2_Options.applicationResource_id"
         )
         .where(
           `${subjectTableToSearch}.${userNameOrIdentifier}`,
@@ -124,17 +124,17 @@ const security = (knex, expressSecured) => {
 
       const patterns = generalHelpers.joinSearch(
         userAllowed,
-        "applicationPart",
+        "applicationResource",
         "allowedTerm"
       );
 
       const patternIndex = patterns.findIndex(
         (p) =>
-          (p.applicationPart === "OAUTH2_global" &&
+          (p.applicationResource === "OAUTH2_global" &&
             p.allowedTerm.indexOf("*") !== -1) ||
-          (p.applicationPart === parsedExp[0] &&
+          (p.applicationResource === parsedExp[0] &&
             p.allowedTerm.indexOf("*") !== -1) ||
-          (p.applicationPart === parsedExp[0] &&
+          (p.applicationResource === parsedExp[0] &&
             p.allowedTerm.indexOf(parsedExp[1]) !== -1)
       );
 

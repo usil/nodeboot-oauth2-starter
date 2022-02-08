@@ -69,7 +69,7 @@ const authSecureRoutes = (
     "OAUTH2_option:create",
     validateBodyMiddleware({
       allowed: { type: "string" },
-      applicationPart_id: { type: "number" },
+      applicationResource_id: { type: "number" },
     }).validate,
     controller.createOption
   );
@@ -169,11 +169,11 @@ const authSecureRoutes = (
   // get roles
   expressSecured.obGet("/auth/role", "OAUTH2_role:select", controller.getRoles);
 
-  // get parts
+  // get resources
   expressSecured.obGet(
-    "/auth/part",
+    "/auth/resource",
     "OAUTH2_application:select",
-    controller.getParts
+    controller.getResources
   );
 
   // update role options
@@ -187,33 +187,33 @@ const authSecureRoutes = (
     controller.updateRoleOptions
   );
 
-  // create a part
+  // create a resource
   expressSecured.obPost(
-    "/auth/part",
+    "/auth/resource",
     "OAUTH2_application:create",
     validateBodyMiddleware({
-      partIdentifier: { type: "string" },
+      resourceIdentifier: { type: "string" },
       applications_id: { type: "number" },
     }).validate,
-    controller.createPart
+    controller.createResource
   );
 
-  // update part options
+  // update resource options
   expressSecured.obPut(
-    "/auth/part/:id/option",
+    "/auth/resource/:id/option",
     "OAUTH2_application:update",
     validateBodyMiddleware({
-      newPartOptions: { type: "array" },
-      originalPartOptions: { type: "array" },
+      newResourceOptions: { type: "array" },
+      originalResourceOptions: { type: "array" },
     }).validate,
-    controller.updatePartOptions
+    controller.updateResourceOptions
   );
 
-  // delete part
+  // delete resource
   expressSecured.obDelete(
-    "/auth/part/:id",
+    "/auth/resource/:id",
     "OAUTH2_application:delete",
-    controller.deletePart
+    controller.deleteResource
   );
 
   // get applications

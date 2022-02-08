@@ -115,10 +115,11 @@ const generalHelpers = () => {
           userObject.roles.push({
             id: usersBaseArray[index].roleId,
             identifier: usersBaseArray[index].roleIdentifier,
-            parts: [
+            resources: [
               {
-                id: usersBaseArray[index].partId,
-                applicationPartName: usersBaseArray[index].applicationPart,
+                id: usersBaseArray[index].resourceId,
+                applicationResourceName:
+                  usersBaseArray[index].applicationResource,
                 allowed: [usersBaseArray[index].allowed],
               },
             ],
@@ -134,10 +135,11 @@ const generalHelpers = () => {
           newArray[lastIndex].roles.push({
             id: usersBaseArray[index].roleId,
             identifier: usersBaseArray[index].roleIdentifier,
-            parts: [
+            resources: [
               {
-                id: usersBaseArray[index].partId,
-                applicationPartName: usersBaseArray[index].applicationPart,
+                id: usersBaseArray[index].resourceId,
+                applicationResourceName:
+                  usersBaseArray[index].applicationResource,
                 allowed: [usersBaseArray[index].allowed],
               },
             ],
@@ -145,18 +147,20 @@ const generalHelpers = () => {
         } else {
           const indexOption = newArray[lastIndex].roles[
             indexRole
-          ].parts.findIndex(
+          ].resources.findIndex(
             (o) =>
-              o.applicationPartName === usersBaseArray[index].applicationPart
+              o.applicationResourceName ===
+              usersBaseArray[index].applicationResource
           );
           if (indexOption === -1) {
-            newArray[lastIndex].roles[indexRole].parts.push({
-              id: usersBaseArray[index].partId,
-              applicationPartName: usersBaseArray[index].applicationPart,
+            newArray[lastIndex].roles[indexRole].resources.push({
+              id: usersBaseArray[index].resourceId,
+              applicationResourceName:
+                usersBaseArray[index].applicationResource,
               allowed: [usersBaseArray[index].allowed],
             });
           } else {
-            newArray[lastIndex].roles[indexRole].parts[
+            newArray[lastIndex].roles[indexRole].resources[
               indexOption
             ].allowed.push(usersBaseArray[index].allowed);
           }
@@ -177,10 +181,11 @@ const generalHelpers = () => {
         const roleObject = {
           id: rolesBaseArray[index].id,
           identifier: rolesBaseArray[index].identifier,
-          parts: [
+          resources: [
             {
-              id: rolesBaseArray[index].partId,
-              applicationPartName: rolesBaseArray[index].applicationPart,
+              id: rolesBaseArray[index].resourceId,
+              applicationResourceName:
+                rolesBaseArray[index].applicationResource,
               allowed: [
                 {
                   allowed: rolesBaseArray[index].allowed,
@@ -193,13 +198,15 @@ const generalHelpers = () => {
         newArray.push(roleObject);
       } else {
         const lastIndex = newArray.length - 1;
-        const indexOption = newArray[lastIndex].parts.findIndex(
-          (o) => o.applicationPartName === rolesBaseArray[index].applicationPart
+        const indexOption = newArray[lastIndex].resources.findIndex(
+          (o) =>
+            o.applicationResourceName ===
+            rolesBaseArray[index].applicationResource
         );
         if (indexOption === -1) {
-          newArray[lastIndex].parts.push({
-            id: rolesBaseArray[index].partId,
-            applicationPartName: rolesBaseArray[index].applicationPart,
+          newArray[lastIndex].resources.push({
+            id: rolesBaseArray[index].resourceId,
+            applicationResourceName: rolesBaseArray[index].applicationResource,
             allowed: [
               {
                 allowed: rolesBaseArray[index].allowed,
@@ -208,7 +215,7 @@ const generalHelpers = () => {
             ],
           });
         } else {
-          newArray[lastIndex].parts[indexOption].allowed.push({
+          newArray[lastIndex].resources[indexOption].allowed.push({
             allowed: rolesBaseArray[index].allowed,
             id: rolesBaseArray[index].optionId,
           });
@@ -217,22 +224,23 @@ const generalHelpers = () => {
     }
     return newArray;
   };
-  helpersObj.parsePartSearch = (partBaseArray) => {
+  helpersObj.parseResourceSearch = (resourceBaseArray) => {
     const newArray = [];
-    for (let index = 0; index < partBaseArray.length; index++) {
+    for (let index = 0; index < resourceBaseArray.length; index++) {
       if (
-        (partBaseArray[index - 1] &&
-          partBaseArray[index].applicationPartName !==
-            partBaseArray[index - 1].applicationPartName) ||
+        (resourceBaseArray[index - 1] &&
+          resourceBaseArray[index].applicationResourceName !==
+            resourceBaseArray[index - 1].applicationResourceName) ||
         index === 0
       ) {
         const roleObject = {
-          id: partBaseArray[index].partId,
-          applicationPartName: partBaseArray[index].applicationPartName,
+          id: resourceBaseArray[index].resourceId,
+          applicationResourceName:
+            resourceBaseArray[index].applicationResourceName,
           allowed: [
             {
-              allowed: partBaseArray[index].allowed,
-              id: partBaseArray[index].optionId,
+              allowed: resourceBaseArray[index].allowed,
+              id: resourceBaseArray[index].optionId,
             },
           ],
         };
@@ -240,11 +248,12 @@ const generalHelpers = () => {
       } else {
         const indexOption = newArray.findIndex(
           (o) =>
-            o.applicationPartName === partBaseArray[index].applicationPartName
+            o.applicationResourceName ===
+            resourceBaseArray[index].applicationResourceName
         );
         newArray[indexOption].allowed.push({
-          allowed: partBaseArray[index].allowed,
-          id: partBaseArray[index].optionId,
+          allowed: resourceBaseArray[index].allowed,
+          id: resourceBaseArray[index].optionId,
         });
       }
     }

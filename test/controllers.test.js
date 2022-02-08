@@ -389,10 +389,10 @@ describe("All auth controllers work", () => {
     expect(mockRes.status).toHaveBeenCalledWith(500);
   });
 
-  test("Create application part", async () => {
+  test("Create application resource", async () => {
     const mockedReq = {
       body: {
-        partIdentifier: "identifier",
+        resourceIdentifier: "identifier",
         applications_id: 1,
       },
     };
@@ -409,17 +409,17 @@ describe("All auth controllers work", () => {
 
     const controllers = authControllers(knexMock, "secret");
 
-    await controllers.createApplicationPart(mockedReq, mockRes);
+    await controllers.createApplicationResource(mockedReq, mockRes);
 
     expect(mockRes.status).toHaveBeenCalledWith(201);
     expect(mockRes.json).toHaveBeenCalled();
-    expect(knexMock.table).toHaveBeenCalledWith("OAUTH2_ApplicationPart");
+    expect(knexMock.table).toHaveBeenCalledWith("OAUTH2_ApplicationResource");
   });
 
-  test("Create application part error", async () => {
+  test("Create application resource error", async () => {
     const mockedReq = {
       body: {
-        partIdentifier: "identifier",
+        resourceIdentifier: "identifier",
         applications_id: 1,
       },
     };
@@ -436,7 +436,7 @@ describe("All auth controllers work", () => {
 
     const controllers = authControllers(knexMock, "secret");
 
-    await controllers.createApplicationPart(mockedReq, mockRes);
+    await controllers.createApplicationResource(mockedReq, mockRes);
 
     expect(mockRes.status).toHaveBeenCalledWith(500);
   });
@@ -445,7 +445,7 @@ describe("All auth controllers work", () => {
     const mockedReq = {
       body: {
         allowed: "allowed",
-        applicationPart_id: 1,
+        applicationResource_id: 1,
       },
     };
 
@@ -472,7 +472,7 @@ describe("All auth controllers work", () => {
     const mockedReq = {
       body: {
         allowed: "allowed",
-        applicationPart_id: 1,
+        applicationResource_id: 1,
       },
     };
 
@@ -516,8 +516,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 1,
         roleIdentifier: "rol1",
-        partId: 1,
-        applicationPart: "part1",
+        resourceId: 1,
+        applicationResource: "resource1",
         allowed: "*",
       },
       {
@@ -528,8 +528,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 1,
         roleIdentifier: "rol1",
-        partId: 1,
-        applicationPart: "part1",
+        resourceId: 1,
+        applicationResource: "resource1",
         allowed: "select",
       },
       {
@@ -540,8 +540,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 3,
-        applicationPart: "part3",
+        resourceId: 3,
+        applicationResource: "resource3",
         allowed: "select",
       },
       {
@@ -552,8 +552,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 4,
-        applicationPart: "part4",
+        resourceId: 4,
+        applicationResource: "resource4",
         allowed: "*",
       },
       {
@@ -564,8 +564,8 @@ describe("All auth controllers work", () => {
         roleDeleted: true,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 4,
-        applicationPart: "part4",
+        resourceId: 4,
+        applicationResource: "resource4",
         allowed: "*",
       },
     ];
@@ -632,8 +632,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 1,
         roleIdentifier: "rol1",
-        partId: 1,
-        applicationPart: "part1",
+        resourceId: 1,
+        applicationResource: "resource1",
         allowed: "*",
       },
       {
@@ -644,8 +644,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 1,
         roleIdentifier: "rol1",
-        partId: 1,
-        applicationPart: "part1",
+        resourceId: 1,
+        applicationResource: "resource1",
         allowed: "select",
       },
       {
@@ -656,8 +656,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 3,
-        applicationPart: "part3",
+        resourceId: 3,
+        applicationResource: "resource3",
         allowed: "select",
       },
       {
@@ -668,8 +668,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 4,
-        applicationPart: "part4",
+        resourceId: 4,
+        applicationResource: "resource4",
         allowed: "*",
       },
       {
@@ -680,8 +680,8 @@ describe("All auth controllers work", () => {
         roleDeleted: true,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 4,
-        applicationPart: "part4",
+        resourceId: 4,
+        applicationResource: "resource4",
         allowed: "*",
       },
     ];
@@ -787,8 +787,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 1,
         roleIdentifier: "rol1",
-        partId: 1,
-        applicationPart: "part1",
+        resourceId: 1,
+        applicationResource: "resource1",
         allowed: "*",
       },
       {
@@ -799,8 +799,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 1,
         roleIdentifier: "rol1",
-        partId: 1,
-        applicationPart: "part1",
+        resourceId: 1,
+        applicationResource: "resource1",
         allowed: "select",
       },
       {
@@ -811,8 +811,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 3,
-        applicationPart: "part3",
+        resourceId: 3,
+        applicationResource: "resource3",
         allowed: "select",
       },
       {
@@ -823,8 +823,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 4,
-        applicationPart: "part4",
+        resourceId: 4,
+        applicationResource: "resource4",
         allowed: "*",
       },
     ];
@@ -846,8 +846,8 @@ describe("All auth controllers work", () => {
       "OAUTH2_Subjects.description",
       "OAUTH2_Subjects.id as subjectId",
       "OAUTH2_Subjects.name",
-      "OAUTH2_ApplicationPart.partIdentifier as applicationPart",
-      "OAUTH2_ApplicationPart.id as partId",
+      "OAUTH2_ApplicationResource.resourceIdentifier as applicationResource",
+      "OAUTH2_ApplicationResource.id as resourceId",
       "OAUTH2_Options.allowed",
       "OAUTH2_Roles.id as roleId",
       "OAUTH2_Roles.identifier as roleIdentifier"
@@ -872,9 +872,9 @@ describe("All auth controllers work", () => {
     );
 
     expect(mockKnex.join).toHaveBeenCalledWith(
-      "OAUTH2_ApplicationPart",
-      `OAUTH2_ApplicationPart.id`,
-      "OAUTH2_Options.applicationPart_id"
+      "OAUTH2_ApplicationResource",
+      `OAUTH2_ApplicationResource.id`,
+      "OAUTH2_Options.applicationResource_id"
     );
 
     expect(mockRes.status).toHaveBeenCalledWith(200);
@@ -947,8 +947,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 1,
         roleIdentifier: "rol1",
-        partId: 1,
-        applicationPart: "part1",
+        resourceId: 1,
+        applicationResource: "resource1",
         allowed: "*",
       },
       {
@@ -959,8 +959,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 1,
         roleIdentifier: "rol1",
-        partId: 1,
-        applicationPart: "part1",
+        resourceId: 1,
+        applicationResource: "resource1",
         allowed: "select",
       },
       {
@@ -971,8 +971,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 3,
-        applicationPart: "part3",
+        resourceId: 3,
+        applicationResource: "resource3",
         allowed: "select",
       },
       {
@@ -983,8 +983,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 4,
-        applicationPart: "part4",
+        resourceId: 4,
+        applicationResource: "resource4",
         allowed: "*",
       },
     ];
@@ -1019,8 +1019,8 @@ describe("All auth controllers work", () => {
       "OAUTH2_Subjects.description",
       "OAUTH2_Subjects.id as subjectId",
       "OAUTH2_Subjects.name",
-      "OAUTH2_ApplicationPart.partIdentifier as applicationPart",
-      "OAUTH2_ApplicationPart.id as partId",
+      "OAUTH2_ApplicationResource.resourceIdentifier as applicationResource",
+      "OAUTH2_ApplicationResource.id as resourceId",
       "OAUTH2_Options.allowed",
       "OAUTH2_Roles.id as roleId",
       "OAUTH2_Roles.deleted as roleDeleted",
@@ -1040,8 +1040,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 1,
         roleIdentifier: "rol1",
-        partId: 1,
-        applicationPart: "part1",
+        resourceId: 1,
+        applicationResource: "resource1",
         allowed: "*",
       },
       {
@@ -1052,8 +1052,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 1,
         roleIdentifier: "rol1",
-        partId: 1,
-        applicationPart: "part1",
+        resourceId: 1,
+        applicationResource: "resource1",
         allowed: "select",
       },
       {
@@ -1064,8 +1064,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 3,
-        applicationPart: "part3",
+        resourceId: 3,
+        applicationResource: "resource3",
         allowed: "select",
       },
       {
@@ -1076,8 +1076,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 4,
-        applicationPart: "part4",
+        resourceId: 4,
+        applicationResource: "resource4",
         allowed: "*",
       },
     ];
@@ -1118,8 +1118,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 1,
         roleIdentifier: "rol1",
-        partId: 1,
-        applicationPart: "part1",
+        resourceId: 1,
+        applicationResource: "resource1",
         allowed: "*",
       },
       {
@@ -1130,8 +1130,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 1,
         roleIdentifier: "rol1",
-        partId: 1,
-        applicationPart: "part1",
+        resourceId: 1,
+        applicationResource: "resource1",
         allowed: "select",
       },
       {
@@ -1142,8 +1142,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 3,
-        applicationPart: "part3",
+        resourceId: 3,
+        applicationResource: "resource3",
         allowed: "select",
       },
       {
@@ -1154,8 +1154,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 4,
-        applicationPart: "part4",
+        resourceId: 4,
+        applicationResource: "resource4",
         allowed: "*",
       },
     ];
@@ -1242,8 +1242,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 1,
         roleIdentifier: "rol1",
-        partId: 1,
-        applicationPart: "part1",
+        resourceId: 1,
+        applicationResource: "resource1",
         allowed: "*",
       },
       {
@@ -1254,8 +1254,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 1,
         roleIdentifier: "rol1",
-        partId: 1,
-        applicationPart: "part1",
+        resourceId: 1,
+        applicationResource: "resource1",
         allowed: "select",
       },
       {
@@ -1266,8 +1266,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 3,
-        applicationPart: "part3",
+        resourceId: 3,
+        applicationResource: "resource3",
         allowed: "select",
       },
       {
@@ -1278,8 +1278,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 4,
-        applicationPart: "part4",
+        resourceId: 4,
+        applicationResource: "resource4",
         allowed: "*",
       },
       {
@@ -1290,8 +1290,8 @@ describe("All auth controllers work", () => {
         roleDeleted: true,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 4,
-        applicationPart: "part4",
+        resourceId: 4,
+        applicationResource: "resource4",
         allowed: "*",
       },
     ];
@@ -1395,8 +1395,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 1,
         roleIdentifier: "rol1",
-        partId: 1,
-        applicationPart: "part1",
+        resourceId: 1,
+        applicationResource: "resource1",
         allowed: "*",
       },
       {
@@ -1407,8 +1407,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 1,
         roleIdentifier: "rol1",
-        partId: 1,
-        applicationPart: "part1",
+        resourceId: 1,
+        applicationResource: "resource1",
         allowed: "select",
       },
       {
@@ -1419,8 +1419,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 3,
-        applicationPart: "part3",
+        resourceId: 3,
+        applicationResource: "resource3",
         allowed: "select",
       },
       {
@@ -1431,8 +1431,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 4,
-        applicationPart: "part4",
+        resourceId: 4,
+        applicationResource: "resource4",
         allowed: "*",
       },
       {
@@ -1443,8 +1443,8 @@ describe("All auth controllers work", () => {
         roleDeleted: true,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 4,
-        applicationPart: "part4",
+        resourceId: 4,
+        applicationResource: "resource4",
         allowed: "*",
       },
     ];
@@ -2195,32 +2195,32 @@ describe("All auth controllers work", () => {
       {
         id: 1,
         identifier: "rol1",
-        partId: 1,
-        applicationPart: "partName1",
+        resourceId: 1,
+        applicationResource: "resourceName1",
         allowed: "*",
         optionId: 1,
       },
       {
         id: 1,
         identifier: "rol1",
-        partId: 1,
-        applicationPart: "partName1",
+        resourceId: 1,
+        applicationResource: "resourceName1",
         allowed: "select",
         optionId: 2,
       },
       {
         id: 2,
         identifier: "rol2",
-        partId: 1,
-        applicationPart: "partName2",
+        resourceId: 1,
+        applicationResource: "resourceName2",
         allowed: "*",
         optionId: 3,
       },
       {
         id: 2,
         identifier: "rol2",
-        partId: 1,
-        applicationPart: "partName3",
+        resourceId: 1,
+        applicationResource: "resourceName3",
         allowed: "create",
         optionId: 4,
       },
@@ -2283,32 +2283,32 @@ describe("All auth controllers work", () => {
       {
         id: 1,
         identifier: "rol1",
-        partId: 1,
-        applicationPart: "partName1",
+        resourceId: 1,
+        applicationResource: "resourceName1",
         allowed: "*",
         optionId: 1,
       },
       {
         id: 1,
         identifier: "rol1",
-        partId: 1,
-        applicationPart: "partName1",
+        resourceId: 1,
+        applicationResource: "resourceName1",
         allowed: "select",
         optionId: 2,
       },
       {
         id: 2,
         identifier: "rol2",
-        partId: 1,
-        applicationPart: "partName2",
+        resourceId: 1,
+        applicationResource: "resourceName2",
         allowed: "*",
         optionId: 3,
       },
       {
         id: 2,
         identifier: "rol2",
-        partId: 1,
-        applicationPart: "partName3",
+        resourceId: 1,
+        applicationResource: "resourceName3",
         allowed: "create",
         optionId: 4,
       },
@@ -2390,7 +2390,7 @@ describe("All auth controllers work", () => {
     expect(mockRes.status).toHaveBeenCalledWith(500);
   });
 
-  test("Select parts basic", async () => {
+  test("Select resource basic", async () => {
     const knex = () => {
       const knexObjs = {};
       knexObjs.table = jest.fn().mockReturnValue(knexObjs);
@@ -2401,8 +2401,8 @@ describe("All auth controllers work", () => {
         .mockReturnValueOnce(knexObjs)
         .mockReturnValueOnce([
           {
-            partId: 1,
-            applicationPartName: "partName1",
+            resourceId: 1,
+            applicationResourceName: "resourceName1",
             allowed: "*",
             optionId: 1,
           },
@@ -2425,10 +2425,10 @@ describe("All auth controllers work", () => {
 
     const helpers = generalHelpers();
 
-    const parsedParts = helpers.parsePartSearch([
+    const parsedResources = helpers.parseResourceSearch([
       {
-        partId: 1,
-        applicationPartName: "partName1",
+        resourceId: 1,
+        applicationResourceName: "resourceName1",
         allowed: "*",
         optionId: 1,
       },
@@ -2436,18 +2436,18 @@ describe("All auth controllers work", () => {
 
     const controllers = authControllers(mockKnex, "secret");
 
-    await controllers.getParts(req, res);
+    await controllers.getResources(req, res);
 
-    expect(mockKnex.table).toHaveBeenCalledWith("OAUTH2_ApplicationPart");
+    expect(mockKnex.table).toHaveBeenCalledWith("OAUTH2_ApplicationResource");
 
     expect(mockKnex.where).toHaveBeenCalledWith(
-      "OAUTH2_ApplicationPart.deleted",
+      "OAUTH2_ApplicationResource.deleted",
       false
     );
 
     expect(mockKnex.select).toHaveBeenCalledWith(
-      "OAUTH2_ApplicationPart.partIdentifier as applicationPartName",
-      "OAUTH2_ApplicationPart.id as partId",
+      "OAUTH2_ApplicationResource.resourceIdentifier as applicationResourceName",
+      "OAUTH2_ApplicationResource.id as resourceId",
       "OAUTH2_Options.allowed",
       "OAUTH2_Options.id as optionId"
     );
@@ -2456,11 +2456,11 @@ describe("All auth controllers work", () => {
     expect(res.json).toHaveBeenCalledWith({
       code: 200000,
       message: "Select completed",
-      content: parsedParts,
+      content: parsedResources,
     });
   });
 
-  test("Select parts with pagination", async () => {
+  test("Select resource with pagination", async () => {
     const mockedReq = {
       query: {
         itemsPerPage: 10,
@@ -2474,28 +2474,28 @@ describe("All auth controllers work", () => {
       json: jest.fn(),
     };
 
-    const partsBaseArray = [
+    const resourcesBaseArray = [
       {
-        partId: 1,
-        applicationPartName: "partName1",
+        resourceId: 1,
+        applicationResourceName: "resourceName1",
         allowed: "*",
         optionId: 1,
       },
       {
-        partId: 2,
-        applicationPartName: "partName2",
+        resourceId: 2,
+        applicationResourceName: "resourceName2",
         allowed: "*",
         optionId: 2,
       },
       {
-        partId: 3,
-        applicationPartName: "partName3",
+        resourceId: 3,
+        applicationResourceName: "resourceName3",
         allowed: "select",
         optionId: 3,
       },
       {
-        partId: 3,
-        applicationPartName: "partName3",
+        resourceId: 3,
+        applicationResourceName: "resourceName3",
         allowed: "create",
         optionId: 4,
       },
@@ -2505,7 +2505,7 @@ describe("All auth controllers work", () => {
       const knex = {};
       knex.limit = jest.fn().mockReturnValue(knex);
       knex.offset = jest.fn().mockReturnValue(knex);
-      knex.orderBy = jest.fn().mockResolvedValue(partsBaseArray);
+      knex.orderBy = jest.fn().mockResolvedValue(resourcesBaseArray);
       knex.select = jest.fn().mockReturnValue(knex);
       knex.where = jest.fn().mockReturnValue(knex);
       knex.table = jest.fn().mockReturnValue(knex);
@@ -2516,15 +2516,15 @@ describe("All auth controllers work", () => {
 
     const helper = generalHelpers();
 
-    const parsedParts = helper.parsePartSearch(partsBaseArray);
+    const parsedResources = helper.parseResourceSearch(resourcesBaseArray);
 
     const controllers = authControllers(knexMock, "secret");
 
-    await controllers.getParts(mockedReq, mockRes);
+    await controllers.getResources(mockedReq, mockRes);
 
     expect(knexMock).toHaveBeenCalledTimes(3);
 
-    expect(knexMock).toHaveBeenCalledWith("OAUTH2_ApplicationPart");
+    expect(knexMock).toHaveBeenCalledWith("OAUTH2_ApplicationResource");
 
     expect(mockRes.status).toHaveBeenCalledWith(200);
 
@@ -2532,7 +2532,7 @@ describe("All auth controllers work", () => {
       code: 200000,
       message: "Select completed",
       content: {
-        items: parsedParts,
+        items: parsedResources,
         pageIndex: 1,
         itemsPerPage: 10,
         totalItems: 2,
@@ -2541,7 +2541,7 @@ describe("All auth controllers work", () => {
     });
   });
 
-  test("Select parts with pagination no query", async () => {
+  test("Select resources with pagination no query", async () => {
     const mockedReq = {
       query: {},
     };
@@ -2551,28 +2551,28 @@ describe("All auth controllers work", () => {
       json: jest.fn(),
     };
 
-    const partsBaseArray = [
+    const resourcesBaseArray = [
       {
-        partId: 1,
-        applicationPartName: "partName1",
+        resourceId: 1,
+        applicationResourceName: "resourceName1",
         allowed: "*",
         optionId: 1,
       },
       {
-        partId: 2,
-        applicationPartName: "partName2",
+        resourceId: 2,
+        applicationResourceName: "resourceName2",
         allowed: "*",
         optionId: 2,
       },
       {
-        partId: 3,
-        applicationPartName: "partName3",
+        resourceId: 3,
+        applicationResourceName: "resourceName3",
         allowed: "select",
         optionId: 3,
       },
       {
-        partId: 3,
-        applicationPartName: "partName3",
+        resourceId: 3,
+        applicationResourceName: "resourceName3",
         allowed: "create",
         optionId: 4,
       },
@@ -2582,7 +2582,7 @@ describe("All auth controllers work", () => {
       const knex = {};
       knex.limit = jest.fn().mockReturnValue(knex);
       knex.offset = jest.fn().mockReturnValue(knex);
-      knex.orderBy = jest.fn().mockResolvedValue(partsBaseArray);
+      knex.orderBy = jest.fn().mockResolvedValue(resourcesBaseArray);
       knex.select = jest.fn().mockReturnValue(knex);
       knex.where = jest.fn().mockReturnValue(knex);
       knex.table = jest.fn().mockReturnValue(knex);
@@ -2593,15 +2593,15 @@ describe("All auth controllers work", () => {
 
     const helper = generalHelpers();
 
-    const parsedParts = helper.parsePartSearch(partsBaseArray);
+    const parsedResources = helper.parseResourceSearch(resourcesBaseArray);
 
     const controllers = authControllers(knexMock, "secret");
 
-    await controllers.getParts(mockedReq, mockRes);
+    await controllers.getResources(mockedReq, mockRes);
 
     expect(knexMock).toHaveBeenCalledTimes(3);
 
-    expect(knexMock).toHaveBeenCalledWith("OAUTH2_ApplicationPart");
+    expect(knexMock).toHaveBeenCalledWith("OAUTH2_ApplicationResource");
 
     expect(mockRes.status).toHaveBeenCalledWith(200);
 
@@ -2609,7 +2609,7 @@ describe("All auth controllers work", () => {
       code: 200000,
       message: "Select completed",
       content: {
-        items: parsedParts,
+        items: parsedResources,
         pageIndex: 0,
         itemsPerPage: 5,
         totalItems: 2,
@@ -2618,7 +2618,7 @@ describe("All auth controllers work", () => {
     });
   });
 
-  test("Select parts with pagination fails", async () => {
+  test("Select resources with pagination fails", async () => {
     const mockedReq = {
       query: {
         itemsPerPage: 10,
@@ -2647,7 +2647,7 @@ describe("All auth controllers work", () => {
 
     const controllers = authControllers(knexMock, "secret");
 
-    await controllers.getParts(mockedReq, mockRes);
+    await controllers.getResources(mockedReq, mockRes);
 
     expect(mockRes.status).toHaveBeenCalledWith(500);
   });
@@ -2778,10 +2778,10 @@ describe("All auth controllers work", () => {
     expect(res.status).toHaveBeenCalledWith(500);
   });
 
-  test("Update part options transaction", async () => {
+  test("Update resource options transaction", async () => {
     const reqBody = {
-      newPartOptions: [{ allowed: "*" }],
-      originalPartOptions: [{ allowed: "select" }],
+      newResourceOptions: [{ allowed: "*" }],
+      originalResourceOptions: [{ allowed: "select" }],
     };
 
     const roleId = 1;
@@ -2797,16 +2797,20 @@ describe("All auth controllers work", () => {
 
     const controllers = authControllers(knex, "secret");
 
-    await controllers.updatePartOptionsTransaction(trxMock, roleId, reqBody);
+    await controllers.updateResourceOptionsTransaction(
+      trxMock,
+      roleId,
+      reqBody
+    );
 
     expect(trxMock.update).toHaveBeenCalledTimes(1);
     expect(trxMock.table).toHaveBeenCalledWith("OAUTH2_Options");
   });
 
-  test("Update part options transaction second branch", async () => {
+  test("Update resource options transaction second branch", async () => {
     const reqBody = {
-      newPartOptions: [{ allowed: "*" }],
-      originalPartOptions: [{ allowed: "*" }],
+      newResourceOptions: [{ allowed: "*" }],
+      originalResourceOptions: [{ allowed: "*" }],
     };
 
     const roleId = 1;
@@ -2822,15 +2826,19 @@ describe("All auth controllers work", () => {
 
     const controllers = authControllers(knex, "secret");
 
-    await controllers.updatePartOptionsTransaction(trxMock, roleId, reqBody);
+    await controllers.updateResourceOptionsTransaction(
+      trxMock,
+      roleId,
+      reqBody
+    );
 
     expect(trxMock.insert).not.toHaveBeenCalled();
   });
 
-  test("Update part options transaction fails", async () => {
+  test("Update resource options transaction fails", async () => {
     const reqBody = {
-      newPartOptions: [{ allowed: "*" }],
-      originalPartOptions: [{ allowed: "select" }],
+      newResourceOptions: [{ allowed: "*" }],
+      originalResourceOptions: [{ allowed: "select" }],
     };
 
     const roleId = 1;
@@ -2847,11 +2855,11 @@ describe("All auth controllers work", () => {
     const controllers = authControllers(knex, "secret");
 
     await expect(
-      controllers.updatePartOptionsTransaction(trxMock, roleId, reqBody)
+      controllers.updateResourceOptionsTransaction(trxMock, roleId, reqBody)
     ).rejects.toThrow();
   });
 
-  test("Update part options", async () => {
+  test("Update resources options", async () => {
     const knex = {
       transaction: jest.fn(),
     };
@@ -2866,13 +2874,13 @@ describe("All auth controllers work", () => {
       json: jest.fn().mockResolvedValue([1]),
     };
     const controllers = authControllers(knex, "secret");
-    await controllers.updatePartOptions(req, res);
+    await controllers.updateResourceOptions(req, res);
 
     expect(knex.transaction).toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(201);
   });
 
-  test("Update part options fails", async () => {
+  test("Update resources options fails", async () => {
     const knex = {
       transaction: jest.fn().mockRejectedValueOnce(new Error("Async error")),
     };
@@ -2887,15 +2895,15 @@ describe("All auth controllers work", () => {
       json: jest.fn().mockResolvedValue([1]),
     };
     const controllers = authControllers(knex, "secret");
-    await controllers.updatePartOptions(req, res);
+    await controllers.updateResourceOptions(req, res);
 
     expect(res.status).toHaveBeenCalledWith(500);
   });
 
-  test("Create part fails", async () => {
+  test("Create resource fails", async () => {
     const req = {
       body: {
-        partIdentifier: "ident",
+        resourceIdentifier: "ident",
         applications_id: 1,
       },
     };
@@ -2911,17 +2919,17 @@ describe("All auth controllers work", () => {
     };
 
     const controllers = authControllers(knex, "secret");
-    await controllers.createPart(req, res);
+    await controllers.createResource(req, res);
 
-    expect(knex.table).toHaveBeenCalledWith("OAUTH2_ApplicationPart");
+    expect(knex.table).toHaveBeenCalledWith("OAUTH2_ApplicationResource");
     expect(knex.table).toHaveBeenCalledWith("OAUTH2_Options");
 
     const optionsToInsert = [
-      { allowed: "*", applicationPart_id: 1 },
-      { allowed: "create", applicationPart_id: 1 },
-      { allowed: "update", applicationPart_id: 1 },
-      { allowed: "delete", applicationPart_id: 1 },
-      { allowed: "select", applicationPart_id: 1 },
+      { allowed: "*", applicationResource_id: 1 },
+      { allowed: "create", applicationResource_id: 1 },
+      { allowed: "update", applicationResource_id: 1 },
+      { allowed: "delete", applicationResource_id: 1 },
+      { allowed: "select", applicationResource_id: 1 },
     ];
 
     expect(knex.insert).toHaveBeenCalledWith(optionsToInsert);
@@ -2929,10 +2937,10 @@ describe("All auth controllers work", () => {
     expect(res.status).toHaveBeenCalledWith(201);
   });
 
-  test("Create part", async () => {
+  test("Create resource", async () => {
     const req = {
       body: {
-        partIdentifier: "ident",
+        resourceIdentifier: "ident",
         applications_id: 1,
       },
     };
@@ -2948,13 +2956,13 @@ describe("All auth controllers work", () => {
     };
 
     const controllers = authControllers(knex, "secret");
-    await controllers.createPart(req, res);
+    await controllers.createResource(req, res);
 
     expect(res.status).toHaveBeenCalledWith(500);
   });
 
-  test("Delete part transaction", async () => {
-    const partId = 1;
+  test("Delete resource transaction", async () => {
+    const resourceId = 1;
 
     const trxMock = {
       table: jest.fn().mockReturnThis(),
@@ -2965,14 +2973,14 @@ describe("All auth controllers work", () => {
     const knex = {};
 
     const controllers = authControllers(knex, "secret");
-    await controllers.deletePartTransaction(trxMock, partId);
+    await controllers.deleteResourceTransaction(trxMock, resourceId);
 
-    expect(trxMock.table).toHaveBeenCalledWith("OAUTH2_ApplicationPart");
+    expect(trxMock.table).toHaveBeenCalledWith("OAUTH2_ApplicationResource");
     expect(trxMock.table).toHaveBeenCalledWith("OAUTH2_Options");
   });
 
-  test("Delete part transaction fails", async () => {
-    const partId = 1;
+  test("Delete resource transaction fails", async () => {
+    const resourceId = 1;
 
     const trxMock = {
       table: jest.fn().mockReturnThis(),
@@ -2984,11 +2992,11 @@ describe("All auth controllers work", () => {
 
     const controllers = authControllers(knex, "secret");
     await expect(
-      controllers.deletePartTransaction(trxMock, partId)
+      controllers.deleteResourceTransaction(trxMock, resourceId)
     ).rejects.toThrow();
   });
 
-  test("Delete parts", async () => {
+  test("Delete resource", async () => {
     const req = {
       params: {
         id: 1,
@@ -3005,13 +3013,13 @@ describe("All auth controllers work", () => {
     };
 
     const controllers = authControllers(knex, "secret");
-    await controllers.deletePart(req, res);
+    await controllers.deleteResource(req, res);
 
     expect(knex.transaction).toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(201);
   });
 
-  test("Delete parts fails", async () => {
+  test("Delete resource fails", async () => {
     const req = {
       params: {
         id: 1,
@@ -3028,7 +3036,7 @@ describe("All auth controllers work", () => {
     };
 
     const controllers = authControllers(knex, "secret");
-    await controllers.deletePart(req, res);
+    await controllers.deleteResource(req, res);
 
     expect(res.status).toHaveBeenCalledWith(500);
   });
