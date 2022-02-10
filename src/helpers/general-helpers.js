@@ -189,7 +189,7 @@ const generalHelpers = () => {
               allowed: [
                 {
                   allowed: rolesBaseArray[index].allowed,
-                  id: rolesBaseArray[index].permissionsId,
+                  id: rolesBaseArray[index].permissionId,
                 },
               ],
             },
@@ -210,14 +210,14 @@ const generalHelpers = () => {
             allowed: [
               {
                 allowed: rolesBaseArray[index].allowed,
-                id: rolesBaseArray[index].permissionsId,
+                id: rolesBaseArray[index].permissionId,
               },
             ],
           });
         } else {
           newArray[lastIndex].resources[indexPermission].allowed.push({
             allowed: rolesBaseArray[index].allowed,
-            id: rolesBaseArray[index].permissionsId,
+            id: rolesBaseArray[index].permissionId,
           });
         }
       }
@@ -240,7 +240,7 @@ const generalHelpers = () => {
           allowed: [
             {
               allowed: resourceBaseArray[index].allowed,
-              id: resourceBaseArray[index].permissionsId,
+              id: resourceBaseArray[index].permissionId,
             },
           ],
         };
@@ -253,7 +253,7 @@ const generalHelpers = () => {
         );
         newArray[indexPermissions].allowed.push({
           allowed: resourceBaseArray[index].allowed,
-          id: resourceBaseArray[index].permissionsId,
+          id: resourceBaseArray[index].permissionId,
         });
       }
     }
