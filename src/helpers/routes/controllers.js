@@ -182,16 +182,16 @@ const authControllers = (
       const insertResult = await trx.table("OAUTH2_Roles").insert({
         identifier: identifier.toLowerCase(),
       });
-      const insertRoleOptions = [];
+      const insertRolePermissions = [];
       for (const allowed in allowedObject) {
         for (const a of allowedObject[allowed]) {
-          insertRoleOptions.push({
+          insertRolePermissions.push({
             roles_id: insertResult[0],
-            options_id: a.id,
+            permissions_id: a.id,
           });
         }
       }
-      await trx.table("OAUTH2_RoleOption").insert(insertRoleOptions);
+      await trx.table("OAUTH2_RolePermission").insert(insertRolePermissions);
 
       return insertResult[0];
     } catch (error) {
@@ -242,17 +242,17 @@ const authControllers = (
     }
   };
 
-  controller.createOption = async (req, res) => {
+  controller.createPermission = async (req, res) => {
     try {
       const { allowed, applicationResource_id } = req.body;
-      const optionId = await knex.table("OAUTH2_Options").insert({
+      const permissionId = await knex.table("OAUTH2_Permissions").insert({
         allowed,
         applicationResource_id,
       });
       return res.status(201).json({
         code: 200001,
-        message: "Option added",
-        content: { optionId: optionId[0] },
+        message: "Permission added",
+        content: { permissionId: permissionId[0] },
       });
     } catch (error) {
       console.log(error);
@@ -309,7 +309,7 @@ const authControllers = (
           "OAUTH2_Subjects.name",
           "OAUTH2_ApplicationResource.resourceIdentifier as applicationResource",
           "OAUTH2_ApplicationResource.id as resourceId",
-          "OAUTH2_Options.allowed",
+          "OAUTH2_Permissions.allowed",
           "OAUTH2_Roles.id as roleId",
           "OAUTH2_Roles.identifier as roleIdentifier"
         )
@@ -325,19 +325,19 @@ const authControllers = (
         )
         .join("OAUTH2_Roles", `OAUTH2_Roles.id`, "OAUTH2_SubjectRole.roles_id")
         .join(
-          "OAUTH2_RoleOption",
-          `OAUTH2_RoleOption.roles_id`,
+          "OAUTH2_RolePermission",
+          `OAUTH2_RolePermission.roles_id`,
           "OAUTH2_SubjectRole.roles_id"
         )
         .join(
-          "OAUTH2_Options",
-          `OAUTH2_Options.id`,
-          "OAUTH2_RoleOption.options_id"
+          "OAUTH2_Permissions",
+          `OAUTH2_Permissions.id`,
+          "OAUTH2_RolePermission.permissions_id"
         )
         .join(
           "OAUTH2_ApplicationResource",
           `OAUTH2_ApplicationResource.id`,
-          "OAUTH2_Options.applicationResource_id"
+          "OAUTH2_Permissions.applicationResource_id"
         )
         .where("OAUTH2_Users.deleted", false);
 
@@ -383,7 +383,7 @@ const authControllers = (
           "OAUTH2_Subjects.name",
           "OAUTH2_ApplicationResource.resourceIdentifier as applicationResource",
           "OAUTH2_ApplicationResource.id as resourceId",
-          "OAUTH2_Options.allowed",
+          "OAUTH2_Permissions.allowed",
           "OAUTH2_Roles.id as roleId",
           "OAUTH2_Roles.identifier as roleIdentifier"
         )
@@ -399,19 +399,19 @@ const authControllers = (
         )
         .join("OAUTH2_Roles", `OAUTH2_Roles.id`, "OAUTH2_SubjectRole.roles_id")
         .join(
-          "OAUTH2_RoleOption",
-          `OAUTH2_RoleOption.roles_id`,
+          "OAUTH2_RolePermission",
+          `OAUTH2_RolePermission.roles_id`,
           "OAUTH2_SubjectRole.roles_id"
         )
         .join(
-          "OAUTH2_Options",
-          `OAUTH2_Options.id`,
-          "OAUTH2_RoleOption.options_id"
+          "OAUTH2_Permissions",
+          `OAUTH2_Permissions.id`,
+          "OAUTH2_RolePermission.permissions_id"
         )
         .join(
           "OAUTH2_ApplicationResource",
           `OAUTH2_ApplicationResource.id`,
-          "OAUTH2_Options.applicationResource_id"
+          "OAUTH2_Permissions.applicationResource_id"
         )
         .where("OAUTH2_Users.id", req.params.id);
 
@@ -457,7 +457,7 @@ const authControllers = (
           "OAUTH2_Subjects.name",
           "OAUTH2_ApplicationResource.resourceIdentifier as applicationResource",
           "OAUTH2_ApplicationResource.id as resourceId",
-          "OAUTH2_Options.allowed",
+          "OAUTH2_Permissions.allowed",
           "OAUTH2_Roles.id as roleId",
           "OAUTH2_Roles.deleted as roleDeleted",
           "OAUTH2_Roles.identifier as roleIdentifier"
@@ -474,19 +474,19 @@ const authControllers = (
         )
         .join("OAUTH2_Roles", `OAUTH2_Roles.id`, "OAUTH2_SubjectRole.roles_id")
         .join(
-          "OAUTH2_RoleOption",
-          `OAUTH2_RoleOption.roles_id`,
+          "OAUTH2_RolePermission",
+          `OAUTH2_RolePermission.roles_id`,
           "OAUTH2_SubjectRole.roles_id"
         )
         .join(
-          "OAUTH2_Options",
-          `OAUTH2_Options.id`,
-          "OAUTH2_RoleOption.options_id"
+          "OAUTH2_Permissions",
+          `OAUTH2_Permissions.id`,
+          "OAUTH2_RolePermission.permissions_id"
         )
         .join(
           "OAUTH2_ApplicationResource",
           `OAUTH2_ApplicationResource.id`,
-          "OAUTH2_Options.applicationResource_id"
+          "OAUTH2_Permissions.applicationResource_id"
         )
         .where("OAUTH2_Users.username", res.locals.user.username);
 
@@ -557,7 +557,7 @@ const authControllers = (
           "OAUTH2_Subjects.name",
           "OAUTH2_ApplicationResource.resourceIdentifier as applicationResource",
           "OAUTH2_ApplicationResource.id as resourceId",
-          "OAUTH2_Options.allowed",
+          "OAUTH2_Permissions.allowed",
           "OAUTH2_Roles.id as roleId",
           "OAUTH2_Roles.deleted as roleDeleted",
           "OAUTH2_Roles.identifier as roleIdentifier"
@@ -574,19 +574,19 @@ const authControllers = (
         )
         .join("OAUTH2_Roles", `OAUTH2_Roles.id`, "OAUTH2_SubjectRole.roles_id")
         .join(
-          "OAUTH2_RoleOption",
-          `OAUTH2_RoleOption.roles_id`,
+          "OAUTH2_RolePermission",
+          `OAUTH2_RolePermission.roles_id`,
           "OAUTH2_SubjectRole.roles_id"
         )
         .join(
-          "OAUTH2_Options",
-          `OAUTH2_Options.id`,
-          "OAUTH2_RoleOption.options_id"
+          "OAUTH2_Permissions",
+          `OAUTH2_Permissions.id`,
+          "OAUTH2_RolePermission.permissions_id"
         )
         .join(
           "OAUTH2_ApplicationResource",
           `OAUTH2_ApplicationResource.id`,
-          "OAUTH2_Options.applicationResource_id"
+          "OAUTH2_Permissions.applicationResource_id"
         )
         .where("OAUTH2_Clients.deleted", false);
 
@@ -897,23 +897,23 @@ const authControllers = (
           "OAUTH2_Roles.identifier",
           "OAUTH2_ApplicationResource.id as resourceId",
           "OAUTH2_ApplicationResource.resourceIdentifier as applicationResource",
-          "OAUTH2_Options.allowed",
-          "OAUTH2_Options.id as optionId"
+          "OAUTH2_Permissions.allowed",
+          "OAUTH2_Permissions.id as permissionId"
         )
         .join(
-          "OAUTH2_RoleOption",
-          `OAUTH2_RoleOption.roles_id`,
+          "OAUTH2_RolePermission",
+          `OAUTH2_RolePermission.roles_id`,
           "OAUTH2_Roles.id"
         )
         .join(
-          "OAUTH2_Options",
-          `OAUTH2_Options.id`,
-          "OAUTH2_RoleOption.options_id"
+          "OAUTH2_Permissions",
+          `OAUTH2_Permissions.id`,
+          "OAUTH2_RolePermission.permissions_id"
         )
         .join(
           "OAUTH2_ApplicationResource",
           `OAUTH2_ApplicationResource.id`,
-          "OAUTH2_Options.applicationResource_id"
+          "OAUTH2_Permissions.applicationResource_id"
         )
         .where("OAUTH2_Roles.deleted", false);
 
@@ -948,16 +948,16 @@ const authControllers = (
           .select(
             "OAUTH2_ApplicationResource.resourceIdentifier as applicationResourceName",
             "OAUTH2_ApplicationResource.id as resourceId",
-            "OAUTH2_Options.allowed",
-            "OAUTH2_Options.id as optionId"
+            "OAUTH2_Permissions.allowed",
+            "OAUTH2_Permissions.id as permissionId"
           )
           .join(
-            "OAUTH2_Options",
-            `OAUTH2_Options.applicationResource_id`,
+            "OAUTH2_Permissions",
+            `OAUTH2_Permissions.applicationResource_id`,
             "OAUTH2_ApplicationResource.id"
           )
           .where("OAUTH2_ApplicationResource.deleted", false)
-          .where("OAUTH2_Options.deleted", false);
+          .where("OAUTH2_Permissions.deleted", false);
 
         const resourcesBasicResult = await resourceSelectBasicQuery;
 
@@ -1014,17 +1014,17 @@ const authControllers = (
         .select(
           "OAUTH2_ApplicationResource.resourceIdentifier as applicationResourceName",
           "OAUTH2_ApplicationResource.id as resourceId",
-          "OAUTH2_Options.allowed",
-          "OAUTH2_Options.id as optionId"
+          "OAUTH2_Permissions.allowed",
+          "OAUTH2_Permissions.id as permissionId"
         )
         .join(
-          "OAUTH2_Options",
-          `OAUTH2_Options.applicationResource_id`,
+          "OAUTH2_Permissions",
+          `OAUTH2_Permissions.applicationResource_id`,
           "OAUTH2_ApplicationResource.id"
         )
         .where("OAUTH2_ApplicationResource.deleted", false)
-        .where("OAUTH2_Options.deleted", false)
-        .orderBy("OAUTH2_Options.id", "asc");
+        .where("OAUTH2_Permissions.deleted", false)
+        .orderBy("OAUTH2_Permissions.id", "asc");
 
       const helpers = generalHelpers();
       const parsedResources = helpers.parseResourceSearch(resourcesFullResult);
@@ -1049,19 +1049,23 @@ const authControllers = (
     }
   };
 
-  controller.updateRoleOptionsTransaction = async (trx, roleId, reqBody) => {
+  controller.updateRolePermissionsTransaction = async (
+    trx,
+    roleId,
+    reqBody
+  ) => {
     try {
       const { newAllowedObject, originalAllowedObject } = reqBody;
 
       const newAllowedArray = [];
       const originalAllowedArray = [];
-      const roleOptionToInsert = [];
+      const rolePermissionToInsert = [];
 
       for (const allowed in newAllowedObject) {
         for (const a of newAllowedObject[allowed]) {
           newAllowedArray.push({
             roles_id: roleId,
-            options_id: a.id,
+            permissions_id: a.id,
           });
         }
       }
@@ -1070,54 +1074,58 @@ const authControllers = (
         for (const a of originalAllowedObject[allowed]) {
           originalAllowedArray.push({
             roles_id: roleId,
-            options_id: a.id,
+            permissions_id: a.id,
           });
         }
       }
 
       for (const allowed of newAllowedArray) {
-        const indexOfRoleOption = originalAllowedArray.findIndex(
-          (orp) => orp.options_id === allowed.options_id
+        const indexOfRolePermission = originalAllowedArray.findIndex(
+          (orp) => orp.permissions_id === allowed.permissions_id
         );
-        if (indexOfRoleOption === -1) {
-          roleOptionToInsert.push(allowed);
+        if (indexOfRolePermission === -1) {
+          rolePermissionToInsert.push(allowed);
         }
       }
 
       for (const allowed of originalAllowedArray) {
-        const indexOfRoleOption = newAllowedArray.findIndex(
-          (orp) => orp.options_id === allowed.options_id
+        const indexOfRolePermission = newAllowedArray.findIndex(
+          (orp) => orp.permissions_id === allowed.permissions_id
         );
-        if (indexOfRoleOption === -1) {
+        if (indexOfRolePermission === -1) {
           await trx
-            .table("OAUTH2_RoleOption")
+            .table("OAUTH2_RolePermission")
             .where({
               roles_id: allowed.roles_id,
-              options_id: allowed.options_id,
+              permissions_id: allowed.permissions_id,
             })
             .del();
         }
       }
 
-      if (roleOptionToInsert.length !== 0) {
-        await trx.table("OAUTH2_RoleOption").insert(roleOptionToInsert);
+      if (rolePermissionToInsert.length !== 0) {
+        await trx.table("OAUTH2_RolePermission").insert(rolePermissionToInsert);
       }
     } catch (error) {
       throw new Error(error.message);
     }
   };
 
-  controller.updateRoleOptions = async (req, res) => {
+  controller.updateRolePermissions = async (req, res) => {
     try {
       const roleId = req.params.id;
 
       await knex.transaction(async (trx) => {
-        await controller.updateRoleOptionsTransaction(trx, roleId, req.body);
+        await controller.updateRolePermissionsTransaction(
+          trx,
+          roleId,
+          req.body
+        );
       });
 
       return res.status(201).json({
         code: 200001,
-        message: "Role options updated",
+        message: "Role permissions updated",
       });
     } catch (error) {
       console.log(error);
@@ -1128,54 +1136,57 @@ const authControllers = (
     }
   };
 
-  controller.updateResourceOptionsTransaction = async (
+  controller.updateResourcePermissionsTransaction = async (
     trx,
     resourceId,
     reqBody
   ) => {
     try {
-      const { newResourceOptions, originalResourceOptions } = reqBody;
+      const { newResourcePermissions, originalResourcePermissions } = reqBody;
 
-      const optionsToInsert = [];
+      const permissionsToInsert = [];
 
-      for (const option of newResourceOptions) {
-        const indexOnOriginal = originalResourceOptions.findIndex(
-          (opt) => opt.allowed.toLowerCase() === option.allowed
+      for (const permissions of newResourcePermissions) {
+        const indexOnOriginal = originalResourcePermissions.findIndex(
+          (opt) => opt.allowed.toLowerCase() === permissions.allowed
         );
         if (indexOnOriginal === -1) {
-          optionsToInsert.push({
-            allowed: option.allowed.toLowerCase(),
+          permissionsToInsert.push({
+            allowed: permissions.allowed.toLowerCase(),
             applicationResource_id: resourceId,
           });
         }
       }
 
-      for (const option of originalResourceOptions) {
-        const indexOnNew = newResourceOptions.findIndex(
-          (opt) => opt.allowed.toLowerCase() === option.allowed
+      for (const permission of originalResourcePermissions) {
+        const indexOnNew = newResourcePermissions.findIndex(
+          (opt) => opt.allowed.toLowerCase() === permission.allowed
         );
         if (indexOnNew === -1) {
-          await trx.table("OAUTH2_Options").update({ deleted: true }).where({
-            allowed: option.allowed,
-            applicationResource_id: resourceId,
-          });
+          await trx
+            .table("OAUTH2_Permissions")
+            .update({ deleted: true })
+            .where({
+              allowed: permission.allowed,
+              applicationResource_id: resourceId,
+            });
         }
       }
 
-      if (optionsToInsert.length !== 0) {
-        await trx.table("OAUTH2_Options").insert(optionsToInsert);
+      if (permissionsToInsert.length !== 0) {
+        await trx.table("OAUTH2_Permissions").insert(permissionsToInsert);
       }
     } catch (error) {
       throw new Error(error.message);
     }
   };
 
-  controller.updateResourceOptions = async (req, res) => {
+  controller.updateResourcePermissions = async (req, res) => {
     try {
       const resourceId = req.params.id;
 
       await knex.transaction(async (trx) => {
-        await controller.updateResourceOptionsTransaction(
+        await controller.updateResourcePermissionsTransaction(
           trx,
           resourceId,
           req.body
@@ -1184,7 +1195,7 @@ const authControllers = (
 
       return res.status(201).json({
         code: 200001,
-        message: "Resource options updated",
+        message: "Resource permissions updated",
       });
     } catch (error) {
       console.log(error);
@@ -1206,7 +1217,7 @@ const authControllers = (
           applications_id,
         });
 
-      const optionsToInsert = [
+      const permissionsToInsert = [
         { allowed: "*", applicationResource_id: insertResult[0] },
         { allowed: "create", applicationResource_id: insertResult[0] },
         { allowed: "update", applicationResource_id: insertResult[0] },
@@ -1214,7 +1225,7 @@ const authControllers = (
         { allowed: "select", applicationResource_id: insertResult[0] },
       ];
 
-      await knex.table("OAUTH2_Options").insert(optionsToInsert);
+      await knex.table("OAUTH2_Permissions").insert(permissionsToInsert);
 
       return res.status(201).json({
         code: 200001,
@@ -1240,7 +1251,7 @@ const authControllers = (
         .where({ id: resourceId });
 
       await trx
-        .table("OAUTH2_Options")
+        .table("OAUTH2_Permissions")
         .update({ deleted: true })
         .where({ applicationResource_id: resourceId });
     } catch (error) {

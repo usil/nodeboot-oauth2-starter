@@ -122,14 +122,14 @@ const tableCreation = (knex, cryptoSecret, extraResources = []) => {
         nullable: false,
       },
     },
-    OAUTH2_RoleOption: {
+    OAUTH2_RolePermission: {
       id: {
         defaultValue: null,
         type: "int",
         maxLength: null,
         nullable: false,
       },
-      options_id: {
+      permissions_id: {
         defaultValue: null,
         type: "int",
         maxLength: null,
@@ -142,7 +142,7 @@ const tableCreation = (knex, cryptoSecret, extraResources = []) => {
         nullable: false,
       },
     },
-    OAUTH2_Options: {
+    OAUTH2_Permissions: {
       id: {
         defaultValue: null,
         type: "int",
@@ -302,7 +302,7 @@ const tableCreation = (knex, cryptoSecret, extraResources = []) => {
         },
         {
           applications_id: applicationId[0],
-          resourceIdentifier: "OAUTH2_option",
+          resourceIdentifier: "OAUTH2_Permission",
         },
       ];
 
@@ -347,15 +347,17 @@ const tableCreation = (knex, cryptoSecret, extraResources = []) => {
         }
       }
 
-      const optionId = await trx.table("OAUTH2_Options").insert(oauthInsert);
+      const permissionId = await trx
+        .table("OAUTH2_Permissions")
+        .insert(oauthInsert);
 
       const roleId = await trx.table("OAUTH2_Roles").insert({
         identifier: "admin",
       });
 
-      await trx.table("OAUTH2_RoleOption").insert([
+      await trx.table("OAUTH2_RolePermission").insert([
         {
-          options_id: optionId[0],
+          permissions_id: permissionId[0],
           roles_id: roleId[0],
         },
       ]);
@@ -460,7 +462,7 @@ const tableCreation = (knex, cryptoSecret, extraResources = []) => {
     table.timestamps(true, true);
   };
 
-  tableCreationObj.createOptionsTable = (table) => {
+  tableCreationObj.createPermissionsTable = (table) => {
     table.increments("id");
     table.string("allowed", 75).notNullable();
     table.integer("applicationResource_id").unsigned().notNullable();
@@ -487,13 +489,13 @@ const tableCreation = (knex, cryptoSecret, extraResources = []) => {
     table.unique(["subject_id", "roles_id"]);
   };
 
-  tableCreationObj.createRoleOptionTable = (table) => {
+  tableCreationObj.createRolePermissionTable = (table) => {
     table.increments("id");
-    table.integer("options_id").unsigned().notNullable();
-    table.foreign("options_id").references("OAUTH2_Options.id");
+    table.integer("permissions_id").unsigned().notNullable();
+    table.foreign("permissions_id").references("OAUTH2_Permissions.id");
     table.integer("roles_id").unsigned().notNullable();
     table.foreign("roles_id").references("OAUTH2_Roles.id");
-    table.unique(["options_id", "roles_id"]);
+    table.unique(["permissions_id", "roles_id"]);
   };
 
   tableCreationObj.createTables = async () => {
@@ -526,8 +528,8 @@ const tableCreation = (knex, cryptoSecret, extraResources = []) => {
       );
 
       await knex.schema.createTable(
-        "OAUTH2_Options",
-        tableCreationObj.createOptionsTable
+        "OAUTH2_Permissions",
+        tableCreationObj.createPermissionsTable
       );
 
       await knex.schema.createTable(
@@ -541,8 +543,8 @@ const tableCreation = (knex, cryptoSecret, extraResources = []) => {
       );
 
       await knex.schema.createTable(
-        "OAUTH2_RoleOption",
-        tableCreationObj.createRoleOptionTable
+        "OAUTH2_RolePermission",
+        tableCreationObj.createRolePermissionTable
       );
 
       await knex.transaction(tableCreationObj.trxCreate);
@@ -559,9 +561,9 @@ const tableCreation = (knex, cryptoSecret, extraResources = []) => {
         "OAUTH2_Clients",
         "OAUTH2_SubjectRole",
         "OAUTH2_Subjects",
-        "OAUTH2_RoleOption",
+        "OAUTH2_RolePermission",
         "OAUTH2_Roles",
-        "OAUTH2_Options",
+        "OAUTH2_Permissions",
         "OAUTH2_ApplicationResource",
         "OAUTH2_Applications",
       ];

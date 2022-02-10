@@ -291,7 +291,7 @@ describe("Table creation works accordingly", () => {
     expect(knexTable.references).toHaveBeenCalledWith("OAUTH2_Subjects.id");
   });
 
-  test("Create options table", () => {
+  test("Create permissions table", () => {
     const mockKnexTable = () => {
       const knex = {};
       knex.increments = jest.fn();
@@ -312,7 +312,7 @@ describe("Table creation works accordingly", () => {
     const knex = mockKnexCreationSchema();
     const tableCreationHelper = tableCreation(knex, "secret");
 
-    tableCreationHelper.createOptionsTable(knexTable);
+    tableCreationHelper.createPermissionsTable(knexTable);
 
     expect(knexTable.increments).toHaveBeenCalledWith("id");
     expect(knexTable.timestamps).toHaveBeenCalledWith(true, true);
@@ -390,7 +390,7 @@ describe("Table creation works accordingly", () => {
     expect(knexTable.references).toHaveBeenCalledWith("OAUTH2_Subjects.id");
   });
 
-  test("Create role options table", () => {
+  test("Create role Permission table", () => {
     const mockKnexTable = () => {
       const knex = {};
       knex.increments = jest.fn();
@@ -411,14 +411,17 @@ describe("Table creation works accordingly", () => {
     const knex = mockKnexCreationSchema();
     const tableCreationHelper = tableCreation(knex, "secret");
 
-    tableCreationHelper.createRoleOptionTable(knexTable);
+    tableCreationHelper.createRolePermissionTable(knexTable);
 
     expect(knexTable.increments).toHaveBeenCalledWith("id");
 
-    expect(knexTable.unique).toHaveBeenCalledWith(["options_id", "roles_id"]);
+    expect(knexTable.unique).toHaveBeenCalledWith([
+      "permissions_id",
+      "roles_id",
+    ]);
 
-    expect(knexTable.foreign).toHaveBeenCalledWith("options_id");
-    expect(knexTable.references).toHaveBeenCalledWith("OAUTH2_Options.id");
+    expect(knexTable.foreign).toHaveBeenCalledWith("permissions_id");
+    expect(knexTable.references).toHaveBeenCalledWith("OAUTH2_Permissions.id");
 
     expect(knexTable.foreign).toHaveBeenCalledWith("roles_id");
     expect(knexTable.references).toHaveBeenCalledWith("OAUTH2_Roles.id");

@@ -45,10 +45,10 @@ const securedExpress = oauthBoot.expressSecured;
 
 await oauthBoot.init();
 
-expressApp.obGet('/', 'applicationResource:resourceOption', (req, res) => {...});
-expressApp.obPost('/', 'applicationResource:resourceOption', (req, res) => {...});
-expressApp.obPut('/', 'applicationResource:resourceOption', (req, res) => {...});
-expressApp.obDelete('/', 'applicationResource:resourceOption', (req, res) => {...});
+expressApp.obGet('/', 'applicationResource:resourcePermission', (req, res) => {...});
+expressApp.obPost('/', 'applicationResource:resourcePermission', (req, res) => {...});
+expressApp.obPut('/', 'applicationResource:resourcePermission', (req, res) => {...});
+expressApp.obDelete('/', 'applicationResource:resourcePermission', (req, res) => {...});
 ```
 
 ## How does it works
@@ -67,14 +67,14 @@ In the case of an standalone use your application where you will protect the end
 
 ### Application resource
 
-The entities or processes that an application has. Those entities could be, for example, the application own tables. All resources have 5 basic options `*, select, create, update, delete`, where `*` is a wild card. However you can create as many options as you want The part and his options will be used to secure an endpoint using the `access control string`.
+The entities or processes that an application has. Those entities could be, for example, the application own tables. All resources have 5 basic permissions `*, select, create, update, delete`, where `*` is a wild card. However you can create as many permissions as you want The part and his permissions will be used to secure an endpoint using the `access control string`.
 
 ### Access control string
 
-An string that validates that a subject has the permission to access determinate endpoint. Has the following form `applicationResource:option`. You will need to pass this string like a middleware after using the library wrapper. The `access control string` is no other thing than a simple middleware, that will guard your endpoint to do this you will to send a jwt token on the header or an url query.
+An string that validates that a subject has the permission to access determinate endpoint. Has the following form `applicationResource:permission`. You will need to pass this string like a middleware after using the library wrapper. The `access control string` is no other thing than a simple middleware, that will guard your endpoint to do this you will to send a jwt token on the header or an url query.
 
 ```javascript
-app.obGet('/api/someEndPoint', 'applicationResource:option', (req, res) => {...});
+app.obGet('/api/someEndPoint', 'applicationResource:permission', (req, res) => {...});
 ```
 
 There it is an special value `':'` that will disable the protection in the endpoint.
@@ -85,7 +85,7 @@ app.obDelete('/api/otherEndPoint', ':', (req, res) => {...});
 
 ### Roles
 
-The roles of an application, they join the application part with an option and then give them to a subject so the middleware added by this library can confirm a subject access to determined end point or validate his access by an endpoint.
+The roles of an application, they join the application part with an permission and then give them to a subject so the middleware added by this library can confirm a subject access to determined end point or validate his access by an endpoint.
 
 ## General usage
 
@@ -123,7 +123,7 @@ The `oauthBoot` has the following variables:
 const securedExpress = oauthBoot.expressSecured;
 ```
 
-Then you will need to call the `init()` function this will create, if not present or compatible, all of the required data base tables. This will also create a `credentials.txt` file with the user admin credentials and the client admin credentials. Then will add the protective middleware for your application and finally add a list of endpoints to create `users`, `clients`, `applications`, `application resources`, `part options`, `roles` and other endpoints to generate tokens and validate them.
+Then you will need to call the `init()` function this will create, if not present or compatible, all of the required data base tables. This will also create a `credentials.txt` file with the user admin credentials and the client admin credentials. Then will add the protective middleware for your application and finally add a list of endpoints to create `users`, `clients`, `applications`, `application resources`, `part permissions`, `roles` and other endpoints to generate tokens and validate them.
 
 ```javascript
 await oauthBoot.init();
@@ -145,10 +145,10 @@ expressApp.delete('/', (req, res) => {...});
 Use:
 
 ```javascript
-expressApp.obGet('/', 'applicationResource:resourceOption', (req, res) => {...});
-expressApp.obPost('/', 'applicationResource:resourceOption', (req, res) => {...});
-expressApp.obPut('/', 'applicationResource:resourceOption', (req, res) => {...});
-expressApp.obDelete('/', 'applicationResource:resourceOption', (req, res) => {...});
+expressApp.obGet('/', 'applicationResource:resourcePermission', (req, res) => {...});
+expressApp.obPost('/', 'applicationResource:resourcePermission', (req, res) => {...});
+expressApp.obPut('/', 'applicationResource:resourcePermission', (req, res) => {...});
+expressApp.obDelete('/', 'applicationResource:resourcePermission', (req, res) => {...});
 ```
 
 ### Accessing the protected endpoints
@@ -165,7 +165,7 @@ Given that token you can send it either in the query url with `?access_token=<to
 
 ### Creating application resources, users, client and roles
 
-You will have to create to create users, clients, application resources, options and roles. To do this you should use the `manage endpoints` present in the documentation.
+You will have to create to create users, clients, application resources, permissions and roles. To do this you should use the `manage endpoints` present in the documentation.
 
 If you are using angular you can also use our own angular library to have an graphic interface.
 
@@ -175,9 +175,9 @@ For an stand alone usage in your back-end just follow the general usage part. Yo
 
 ## Distributed usage
 
-All of the general usage points stand however to protect an external api that is in lets say using `.NET` first create a new application lest say `C# app` that application will have an id that can be used to validate the access token. Each application has its own resources and options.
+All of the general usage points stand however to protect an external api that is in lets say using `.NET` first create a new application lest say `C# app` that application will have an id that can be used to validate the access token. Each application has its own resources and permissions.
 
-To validate an access token use the `/auth/validate` endpoint sending the application id and the part, the endpoint will give you the allowed options of the subject that the token belongs to.
+To validate an access token use the `/auth/validate` endpoint sending the application id and the part, the endpoint will give you the allowed permissions of the subject that the token belongs to.
 
 ## Database
 
@@ -185,17 +185,17 @@ The library will ask for a knex connection to mysql, given that will create 7 ma
 
 ### Tables
 
-| Table                      | Description                                                                                                            |
-| -------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| OAUTH2_Subjects            | A user or client of the application, a subject can access or use different entities or processes of the application.   |
-| OAUTH2_Users               | An user of the application will have an username and a password.                                                       |
-| OAUTH2_Clients             | A client of the application that will access it with an access_token.                                                  |
-| OAUTH2_Applications        | A list of the applications that this database supports.                                                                |
-| OAUTH2_ApplicationResource | n,mj                                                                                                                   |
-| OAUTH2_Options             | The access options that each `OAUTH2_ApplicationResource` has.                                                         |
-| OAUTH2_Roles               | The roles of that an subject can have they are related to a list of application resources with its respective options. |
+| Table                      | Description                                                                                                                |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| OAUTH2_Subjects            | A user or client of the application, a subject can access or use different entities or processes of the application.       |
+| OAUTH2_Users               | An user of the application will have an username and a password.                                                           |
+| OAUTH2_Clients             | A client of the application that will access it with an access_token.                                                      |
+| OAUTH2_Applications        | A list of the applications that this database supports.                                                                    |
+| OAUTH2_ApplicationResource | n,mj                                                                                                                       |
+| OAUTH2_Permissions         | The access permissions that each `OAUTH2_ApplicationResource` has.                                                         |
+| OAUTH2_Roles               | The roles of that an subject can have they are related to a list of application resources with its respective permissions. |
 
-### OAUTH2_ApplicationResource, OAUTH2_Options and how to secure your endpoints
+### OAUTH2_ApplicationResource, OAUTH2_Permissions and how to secure your endpoints
 
 Lets suppose that you have an store application named `superbuy` and that you have the following processes, entities or resources:
 
@@ -204,7 +204,7 @@ Lets suppose that you have an store application named `superbuy` and that you ha
 - Read accounting excel
 
 For _Sales_ you will create a `sales` column in the table `OAUTH2_ApplicationResource`, for _Products_ a `products` one and finally for _Read accounting excel_ `read_accounting_excel`.
-Each column will be create with at least those five options that will be put in the table `OAUTH2_Options`:
+Each column will be create with at least those five permissions that will be put in the table `OAUTH2_Permissions`:
 
 - _\*_
 - create
@@ -221,7 +221,7 @@ Then for example to protect sales you will need to use an access control string:
 | `PUT`    | /sale | sales:update          |
 | `DELETE` | /sale | sales:delete          |
 
-In the case of the process you can either use any of the access control string like `read_accounting_excel:create` or create a new option like _process_ and use it `read_accounting_excel:process`, it is up to you.
+In the case of the process you can either use any of the access control string like `read_accounting_excel:create` or create a new permission like _process_ and use it `read_accounting_excel:process`, it is up to you.
 
 ## TODO
 

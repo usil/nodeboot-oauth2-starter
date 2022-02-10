@@ -266,7 +266,7 @@ describe("All auth controllers work", () => {
     await controllers.createRoleTransaction(trxMock, reqBody);
 
     expect(trxMock.insert).toHaveBeenCalledTimes(2);
-    expect(trxMock.table).toHaveBeenCalledWith("OAUTH2_RoleOption");
+    expect(trxMock.table).toHaveBeenCalledWith("OAUTH2_RolePermission");
     expect(trxMock.table).toHaveBeenCalledWith("OAUTH2_Roles");
   });
 
@@ -441,7 +441,7 @@ describe("All auth controllers work", () => {
     expect(mockRes.status).toHaveBeenCalledWith(500);
   });
 
-  test("Create option", async () => {
+  test("Create permission", async () => {
     const mockedReq = {
       body: {
         allowed: "allowed",
@@ -461,14 +461,14 @@ describe("All auth controllers work", () => {
 
     const controllers = authControllers(knexMock, "secret");
 
-    await controllers.createOption(mockedReq, mockRes);
+    await controllers.createPermission(mockedReq, mockRes);
 
     expect(mockRes.status).toHaveBeenCalledWith(201);
     expect(mockRes.json).toHaveBeenCalled();
-    expect(knexMock.table).toHaveBeenCalledWith("OAUTH2_Options");
+    expect(knexMock.table).toHaveBeenCalledWith("OAUTH2_Permissions");
   });
 
-  test("Create option error", async () => {
+  test("Create permission error", async () => {
     const mockedReq = {
       body: {
         allowed: "allowed",
@@ -488,7 +488,7 @@ describe("All auth controllers work", () => {
 
     const controllers = authControllers(knexMock, "secret");
 
-    await controllers.createOption(mockedReq, mockRes);
+    await controllers.createPermission(mockedReq, mockRes);
 
     expect(mockRes.status).toHaveBeenCalledWith(500);
   });
@@ -848,7 +848,7 @@ describe("All auth controllers work", () => {
       "OAUTH2_Subjects.name",
       "OAUTH2_ApplicationResource.resourceIdentifier as applicationResource",
       "OAUTH2_ApplicationResource.id as resourceId",
-      "OAUTH2_Options.allowed",
+      "OAUTH2_Permissions.allowed",
       "OAUTH2_Roles.id as roleId",
       "OAUTH2_Roles.identifier as roleIdentifier"
     );
@@ -874,7 +874,7 @@ describe("All auth controllers work", () => {
     expect(mockKnex.join).toHaveBeenCalledWith(
       "OAUTH2_ApplicationResource",
       `OAUTH2_ApplicationResource.id`,
-      "OAUTH2_Options.applicationResource_id"
+      "OAUTH2_Permissions.applicationResource_id"
     );
 
     expect(mockRes.status).toHaveBeenCalledWith(200);
@@ -1021,7 +1021,7 @@ describe("All auth controllers work", () => {
       "OAUTH2_Subjects.name",
       "OAUTH2_ApplicationResource.resourceIdentifier as applicationResource",
       "OAUTH2_ApplicationResource.id as resourceId",
-      "OAUTH2_Options.allowed",
+      "OAUTH2_Permissions.allowed",
       "OAUTH2_Roles.id as roleId",
       "OAUTH2_Roles.deleted as roleDeleted",
       "OAUTH2_Roles.identifier as roleIdentifier"
@@ -2198,7 +2198,7 @@ describe("All auth controllers work", () => {
         resourceId: 1,
         applicationResource: "resourceName1",
         allowed: "*",
-        optionId: 1,
+        permissionId: 1,
       },
       {
         id: 1,
@@ -2206,7 +2206,7 @@ describe("All auth controllers work", () => {
         resourceId: 1,
         applicationResource: "resourceName1",
         allowed: "select",
-        optionId: 2,
+        permissionId: 2,
       },
       {
         id: 2,
@@ -2214,7 +2214,7 @@ describe("All auth controllers work", () => {
         resourceId: 1,
         applicationResource: "resourceName2",
         allowed: "*",
-        optionId: 3,
+        permissionId: 3,
       },
       {
         id: 2,
@@ -2222,7 +2222,7 @@ describe("All auth controllers work", () => {
         resourceId: 1,
         applicationResource: "resourceName3",
         allowed: "create",
-        optionId: 4,
+        permissionId: 4,
       },
     ];
 
@@ -2286,7 +2286,7 @@ describe("All auth controllers work", () => {
         resourceId: 1,
         applicationResource: "resourceName1",
         allowed: "*",
-        optionId: 1,
+        permissionId: 1,
       },
       {
         id: 1,
@@ -2294,7 +2294,7 @@ describe("All auth controllers work", () => {
         resourceId: 1,
         applicationResource: "resourceName1",
         allowed: "select",
-        optionId: 2,
+        permissionId: 2,
       },
       {
         id: 2,
@@ -2302,7 +2302,7 @@ describe("All auth controllers work", () => {
         resourceId: 1,
         applicationResource: "resourceName2",
         allowed: "*",
-        optionId: 3,
+        permissionId: 3,
       },
       {
         id: 2,
@@ -2310,7 +2310,7 @@ describe("All auth controllers work", () => {
         resourceId: 1,
         applicationResource: "resourceName3",
         allowed: "create",
-        optionId: 4,
+        permissionId: 4,
       },
     ];
 
@@ -2404,7 +2404,7 @@ describe("All auth controllers work", () => {
             resourceId: 1,
             applicationResourceName: "resourceName1",
             allowed: "*",
-            optionId: 1,
+            permissionId: 1,
           },
         ]);
       return knexObjs;
@@ -2430,7 +2430,7 @@ describe("All auth controllers work", () => {
         resourceId: 1,
         applicationResourceName: "resourceName1",
         allowed: "*",
-        optionId: 1,
+        permissionId: 1,
       },
     ]);
 
@@ -2448,8 +2448,8 @@ describe("All auth controllers work", () => {
     expect(mockKnex.select).toHaveBeenCalledWith(
       "OAUTH2_ApplicationResource.resourceIdentifier as applicationResourceName",
       "OAUTH2_ApplicationResource.id as resourceId",
-      "OAUTH2_Options.allowed",
-      "OAUTH2_Options.id as optionId"
+      "OAUTH2_Permissions.allowed",
+      "OAUTH2_Permissions.id as permissionId"
     );
 
     expect(res.status).toHaveBeenCalledWith(200);
@@ -2479,25 +2479,25 @@ describe("All auth controllers work", () => {
         resourceId: 1,
         applicationResourceName: "resourceName1",
         allowed: "*",
-        optionId: 1,
+        permissionId: 1,
       },
       {
         resourceId: 2,
         applicationResourceName: "resourceName2",
         allowed: "*",
-        optionId: 2,
+        permissionId: 2,
       },
       {
         resourceId: 3,
         applicationResourceName: "resourceName3",
         allowed: "select",
-        optionId: 3,
+        permissionId: 3,
       },
       {
         resourceId: 3,
         applicationResourceName: "resourceName3",
         allowed: "create",
-        optionId: 4,
+        permissionId: 4,
       },
     ];
 
@@ -2556,25 +2556,25 @@ describe("All auth controllers work", () => {
         resourceId: 1,
         applicationResourceName: "resourceName1",
         allowed: "*",
-        optionId: 1,
+        permissionId: 1,
       },
       {
         resourceId: 2,
         applicationResourceName: "resourceName2",
         allowed: "*",
-        optionId: 2,
+        permissionId: 2,
       },
       {
         resourceId: 3,
         applicationResourceName: "resourceName3",
         allowed: "select",
-        optionId: 3,
+        permissionId: 3,
       },
       {
         resourceId: 3,
         applicationResourceName: "resourceName3",
         allowed: "create",
-        optionId: 4,
+        permissionId: 4,
       },
     ];
 
@@ -2652,13 +2652,13 @@ describe("All auth controllers work", () => {
     expect(mockRes.status).toHaveBeenCalledWith(500);
   });
 
-  test("Update role options transaction", async () => {
+  test("Update role permissions transaction", async () => {
     const reqBody = {
       newAllowedObject: {
-        option: [{ id: 1 }],
+        permission: [{ id: 1 }],
       },
       originalAllowedObject: {
-        option: [{ id: 2 }],
+        permission: [{ id: 2 }],
       },
     };
 
@@ -2675,19 +2675,23 @@ describe("All auth controllers work", () => {
 
     const controllers = authControllers(knex, "secret");
 
-    await controllers.updateRoleOptionsTransaction(trxMock, roleId, reqBody);
+    await controllers.updateRolePermissionsTransaction(
+      trxMock,
+      roleId,
+      reqBody
+    );
 
     expect(trxMock.del).toHaveBeenCalledTimes(1);
-    expect(trxMock.table).toHaveBeenCalledWith("OAUTH2_RoleOption");
+    expect(trxMock.table).toHaveBeenCalledWith("OAUTH2_RolePermission");
   });
 
-  test("Update role options transaction second branch", async () => {
+  test("Update role permissions transaction second branch", async () => {
     const reqBody = {
       newAllowedObject: {
-        option: [{ id: 2 }],
+        permission: [{ id: 2 }],
       },
       originalAllowedObject: {
-        option: [{ id: 2 }],
+        permission: [{ id: 2 }],
       },
     };
 
@@ -2704,18 +2708,22 @@ describe("All auth controllers work", () => {
 
     const controllers = authControllers(knex, "secret");
 
-    await controllers.updateRoleOptionsTransaction(trxMock, roleId, reqBody);
+    await controllers.updateRolePermissionsTransaction(
+      trxMock,
+      roleId,
+      reqBody
+    );
 
     expect(trxMock.table).not.toHaveBeenCalled();
   });
 
-  test("Update role options transaction fails", async () => {
+  test("Update role permissions transaction fails", async () => {
     const reqBody = {
       newAllowedObject: {
-        option: [{ id: 1 }],
+        permission: [{ id: 1 }],
       },
       originalAllowedObject: {
-        option: [{ id: 2 }],
+        permission: [{ id: 2 }],
       },
     };
 
@@ -2733,11 +2741,11 @@ describe("All auth controllers work", () => {
     const controllers = authControllers(knex, "secret");
 
     await expect(
-      controllers.updateRoleOptionsTransaction(trxMock, roleId, reqBody)
+      controllers.updateRolePermissionsTransaction(trxMock, roleId, reqBody)
     ).rejects.toThrow();
   });
 
-  test("Update role options", async () => {
+  test("Update role permissions", async () => {
     const knex = {
       transaction: jest.fn(),
     };
@@ -2752,13 +2760,13 @@ describe("All auth controllers work", () => {
       json: jest.fn().mockResolvedValue([1]),
     };
     const controllers = authControllers(knex, "secret");
-    await controllers.updateRoleOptions(req, res);
+    await controllers.updateRolePermissions(req, res);
 
     expect(knex.transaction).toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(201);
   });
 
-  test("Update role options fails", async () => {
+  test("Update role permissions fails", async () => {
     const knex = {
       transaction: jest.fn().mockRejectedValueOnce(new Error("Async error")),
     };
@@ -2773,15 +2781,15 @@ describe("All auth controllers work", () => {
       json: jest.fn().mockResolvedValue([1]),
     };
     const controllers = authControllers(knex, "secret");
-    await controllers.updateRoleOptions(req, res);
+    await controllers.updateRolePermissions(req, res);
 
     expect(res.status).toHaveBeenCalledWith(500);
   });
 
-  test("Update resource options transaction", async () => {
+  test("Update resource permissions transaction", async () => {
     const reqBody = {
-      newResourceOptions: [{ allowed: "*" }],
-      originalResourceOptions: [{ allowed: "select" }],
+      newResourcePermissions: [{ allowed: "*" }],
+      originalResourcePermissions: [{ allowed: "select" }],
     };
 
     const roleId = 1;
@@ -2797,20 +2805,20 @@ describe("All auth controllers work", () => {
 
     const controllers = authControllers(knex, "secret");
 
-    await controllers.updateResourceOptionsTransaction(
+    await controllers.updateResourcePermissionsTransaction(
       trxMock,
       roleId,
       reqBody
     );
 
     expect(trxMock.update).toHaveBeenCalledTimes(1);
-    expect(trxMock.table).toHaveBeenCalledWith("OAUTH2_Options");
+    expect(trxMock.table).toHaveBeenCalledWith("OAUTH2_Permissions");
   });
 
-  test("Update resource options transaction second branch", async () => {
+  test("Update resource permissions transaction second branch", async () => {
     const reqBody = {
-      newResourceOptions: [{ allowed: "*" }],
-      originalResourceOptions: [{ allowed: "*" }],
+      newResourcePermissions: [{ allowed: "*" }],
+      originalResourcePermissions: [{ allowed: "*" }],
     };
 
     const roleId = 1;
@@ -2826,7 +2834,7 @@ describe("All auth controllers work", () => {
 
     const controllers = authControllers(knex, "secret");
 
-    await controllers.updateResourceOptionsTransaction(
+    await controllers.updateResourcePermissionsTransaction(
       trxMock,
       roleId,
       reqBody
@@ -2835,10 +2843,10 @@ describe("All auth controllers work", () => {
     expect(trxMock.insert).not.toHaveBeenCalled();
   });
 
-  test("Update resource options transaction fails", async () => {
+  test("Update resource permissions transaction fails", async () => {
     const reqBody = {
-      newResourceOptions: [{ allowed: "*" }],
-      originalResourceOptions: [{ allowed: "select" }],
+      newResourcePermissions: [{ allowed: "*" }],
+      originalResourcePermissions: [{ allowed: "select" }],
     };
 
     const roleId = 1;
@@ -2855,11 +2863,11 @@ describe("All auth controllers work", () => {
     const controllers = authControllers(knex, "secret");
 
     await expect(
-      controllers.updateResourceOptionsTransaction(trxMock, roleId, reqBody)
+      controllers.updateResourcePermissionsTransaction(trxMock, roleId, reqBody)
     ).rejects.toThrow();
   });
 
-  test("Update resources options", async () => {
+  test("Update resources permissions", async () => {
     const knex = {
       transaction: jest.fn(),
     };
@@ -2874,13 +2882,13 @@ describe("All auth controllers work", () => {
       json: jest.fn().mockResolvedValue([1]),
     };
     const controllers = authControllers(knex, "secret");
-    await controllers.updateResourceOptions(req, res);
+    await controllers.updateResourcePermissions(req, res);
 
     expect(knex.transaction).toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(201);
   });
 
-  test("Update resources options fails", async () => {
+  test("Update resources permissions fails", async () => {
     const knex = {
       transaction: jest.fn().mockRejectedValueOnce(new Error("Async error")),
     };
@@ -2895,7 +2903,7 @@ describe("All auth controllers work", () => {
       json: jest.fn().mockResolvedValue([1]),
     };
     const controllers = authControllers(knex, "secret");
-    await controllers.updateResourceOptions(req, res);
+    await controllers.updateResourcePermissions(req, res);
 
     expect(res.status).toHaveBeenCalledWith(500);
   });
@@ -2922,9 +2930,9 @@ describe("All auth controllers work", () => {
     await controllers.createResource(req, res);
 
     expect(knex.table).toHaveBeenCalledWith("OAUTH2_ApplicationResource");
-    expect(knex.table).toHaveBeenCalledWith("OAUTH2_Options");
+    expect(knex.table).toHaveBeenCalledWith("OAUTH2_Permissions");
 
-    const optionsToInsert = [
+    const permissionsToInsert = [
       { allowed: "*", applicationResource_id: 1 },
       { allowed: "create", applicationResource_id: 1 },
       { allowed: "update", applicationResource_id: 1 },
@@ -2932,7 +2940,7 @@ describe("All auth controllers work", () => {
       { allowed: "select", applicationResource_id: 1 },
     ];
 
-    expect(knex.insert).toHaveBeenCalledWith(optionsToInsert);
+    expect(knex.insert).toHaveBeenCalledWith(permissionsToInsert);
 
     expect(res.status).toHaveBeenCalledWith(201);
   });
@@ -2976,7 +2984,7 @@ describe("All auth controllers work", () => {
     await controllers.deleteResourceTransaction(trxMock, resourceId);
 
     expect(trxMock.table).toHaveBeenCalledWith("OAUTH2_ApplicationResource");
-    expect(trxMock.table).toHaveBeenCalledWith("OAUTH2_Options");
+    expect(trxMock.table).toHaveBeenCalledWith("OAUTH2_Permissions");
   });
 
   test("Delete resource transaction fails", async () => {

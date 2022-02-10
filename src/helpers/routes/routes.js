@@ -63,15 +63,15 @@ const authSecureRoutes = (
     controller.createApplication
   );
 
-  // create option
+  // create permission
   expressSecured.obPost(
-    "/auth/option",
-    "OAUTH2_option:create",
+    "/auth/permission",
+    "OAUTH2_permission:create",
     validateBodyMiddleware({
       allowed: { type: "string" },
       applicationResource_id: { type: "number" },
     }).validate,
-    controller.createOption
+    controller.createPermission
   );
 
   // get users
@@ -176,15 +176,15 @@ const authSecureRoutes = (
     controller.getResources
   );
 
-  // update role options
+  // update role permissions
   expressSecured.obPut(
-    "/auth/role/:id/option",
+    "/auth/role/:id/permission",
     "OAUTH2_role:update",
     validateBodyMiddleware({
       newAllowedObject: { type: "object" },
       originalAllowedObject: { type: "object" },
     }).validate,
-    controller.updateRoleOptions
+    controller.updateRolePermissions
   );
 
   // create a resource
@@ -198,15 +198,15 @@ const authSecureRoutes = (
     controller.createResource
   );
 
-  // update resource options
+  // update resource permissions
   expressSecured.obPut(
-    "/auth/resource/:id/option",
+    "/auth/resource/:id/permission",
     "OAUTH2_application:update",
     validateBodyMiddleware({
-      newResourceOptions: { type: "array" },
-      originalResourceOptions: { type: "array" },
+      newResourcePermissions: { type: "array" },
+      originalResourcePermissions: { type: "array" },
     }).validate,
-    controller.updateResourceOptions
+    controller.updateResourcePermissions
   );
 
   // delete resource

@@ -91,7 +91,7 @@ const security = (knex, expressSecured) => {
       const userAllowed = await knex
         .table(subjectTableToSearch)
         .select(
-          "OAUTH2_Options.allowed as allowedTerm",
+          "OAUTH2_Permissions.allowed as allowedTerm",
           "OAUTH2_ApplicationResource.resourceIdentifier as applicationResource"
         )
         .join(
@@ -101,19 +101,19 @@ const security = (knex, expressSecured) => {
         )
         .join("OAUTH2_Roles", `OAUTH2_Roles.id`, "OAUTH2_SubjectRole.roles_id")
         .join(
-          "OAUTH2_RoleOption",
-          `OAUTH2_RoleOption.roles_id`,
+          "OAUTH2_RolePermission",
+          "OAUTH2_RolePermission.roles_id",
           "OAUTH2_Roles.id"
         )
         .join(
-          "OAUTH2_Options",
-          `OAUTH2_Options.id`,
-          "OAUTH2_RoleOption.options_id"
+          "OAUTH2_Permissions",
+          "OAUTH2_Permissions.id",
+          "OAUTH2_RolePermission.permissions_id"
         )
         .join(
           "OAUTH2_ApplicationResource",
-          `OAUTH2_ApplicationResource.id`,
-          "OAUTH2_Options.applicationResource_id"
+          "OAUTH2_ApplicationResource.id",
+          "OAUTH2_Permissions.applicationResource_id"
         )
         .where(
           `${subjectTableToSearch}.${userNameOrIdentifier}`,

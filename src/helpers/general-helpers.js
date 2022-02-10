@@ -32,48 +32,48 @@ const generalHelpers = () => {
     var bKeys = Object.keys(b).sort();
     return JSON.stringify(aKeys) === JSON.stringify(bKeys);
   };
-  helpersObj.validateBody = (validationOptions) => {
+  helpersObj.validateBody = (validationPermissions) => {
     const validateObj = {};
     validateObj.validate = (req, res, next) => {
-      if (!helpersObj.compareKeys(req.body, validationOptions))
+      if (!helpersObj.compareKeys(req.body, validationPermissions))
         return res.status(400).json({ code: 400000, message: "Invalid body" });
 
-      for (const option in validationOptions) {
-        switch (validationOptions[option].type) {
+      for (const permission in validationPermissions) {
+        switch (validationPermissions[permission].type) {
           case "array":
-            if (!Array.isArray(req.body[option])) {
+            if (!Array.isArray(req.body[permission])) {
               return res.status(400).json({
                 code: 400000,
-                message: `Invalid body; ${option} is not an array`,
+                message: `Invalid body; ${permission} is not an array`,
               });
             }
             break;
           case "string":
             if (
               !(
-                Object.prototype.toString.call(req.body[option]) ==
+                Object.prototype.toString.call(req.body[permission]) ==
                 "[object String]"
               )
             ) {
               return res.status(400).json({
                 code: 400000,
-                message: `Invalid body; ${option} is not an string`,
+                message: `Invalid body; ${permission} is not an string`,
               });
             }
             break;
           case "number":
-            if (isNaN(req.body[option])) {
+            if (isNaN(req.body[permission])) {
               return res.status(400).json({
                 code: 400000,
-                message: `Invalid body; ${option} is not a number`,
+                message: `Invalid body; ${permission} is not a number`,
               });
             }
             break;
           case "object":
-            if (!(typeof req.body[option] === "object")) {
+            if (!(typeof req.body[permission] === "object")) {
               return res.status(400).json({
                 code: 400000,
-                message: `Invalid body; ${option} is not an object`,
+                message: `Invalid body; ${permission} is not an object`,
               });
             }
             break;
@@ -145,14 +145,14 @@ const generalHelpers = () => {
             ],
           });
         } else {
-          const indexOption = newArray[lastIndex].roles[
+          const indexPermission = newArray[lastIndex].roles[
             indexRole
           ].resources.findIndex(
             (o) =>
               o.applicationResourceName ===
               usersBaseArray[index].applicationResource
           );
-          if (indexOption === -1) {
+          if (indexPermission === -1) {
             newArray[lastIndex].roles[indexRole].resources.push({
               id: usersBaseArray[index].resourceId,
               applicationResourceName:
@@ -161,7 +161,7 @@ const generalHelpers = () => {
             });
           } else {
             newArray[lastIndex].roles[indexRole].resources[
-              indexOption
+              indexPermission
             ].allowed.push(usersBaseArray[index].allowed);
           }
         }
@@ -189,7 +189,7 @@ const generalHelpers = () => {
               allowed: [
                 {
                   allowed: rolesBaseArray[index].allowed,
-                  id: rolesBaseArray[index].optionId,
+                  id: rolesBaseArray[index].permissionsId,
                 },
               ],
             },
@@ -198,26 +198,26 @@ const generalHelpers = () => {
         newArray.push(roleObject);
       } else {
         const lastIndex = newArray.length - 1;
-        const indexOption = newArray[lastIndex].resources.findIndex(
+        const indexPermission = newArray[lastIndex].resources.findIndex(
           (o) =>
             o.applicationResourceName ===
             rolesBaseArray[index].applicationResource
         );
-        if (indexOption === -1) {
+        if (indexPermission === -1) {
           newArray[lastIndex].resources.push({
             id: rolesBaseArray[index].resourceId,
             applicationResourceName: rolesBaseArray[index].applicationResource,
             allowed: [
               {
                 allowed: rolesBaseArray[index].allowed,
-                id: rolesBaseArray[index].optionId,
+                id: rolesBaseArray[index].permissionsId,
               },
             ],
           });
         } else {
-          newArray[lastIndex].resources[indexOption].allowed.push({
+          newArray[lastIndex].resources[indexPermission].allowed.push({
             allowed: rolesBaseArray[index].allowed,
-            id: rolesBaseArray[index].optionId,
+            id: rolesBaseArray[index].permissionsId,
           });
         }
       }
@@ -240,20 +240,20 @@ const generalHelpers = () => {
           allowed: [
             {
               allowed: resourceBaseArray[index].allowed,
-              id: resourceBaseArray[index].optionId,
+              id: resourceBaseArray[index].permissionsId,
             },
           ],
         };
         newArray.push(roleObject);
       } else {
-        const indexOption = newArray.findIndex(
+        const indexPermissions = newArray.findIndex(
           (o) =>
             o.applicationResourceName ===
             resourceBaseArray[index].applicationResourceName
         );
-        newArray[indexOption].allowed.push({
+        newArray[indexPermissions].allowed.push({
           allowed: resourceBaseArray[index].allowed,
-          id: resourceBaseArray[index].optionId,
+          id: resourceBaseArray[index].permissionsId,
         });
       }
     }
