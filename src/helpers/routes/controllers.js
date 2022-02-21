@@ -86,6 +86,8 @@ const authControllers = (
         description,
       });
 
+      const hexedInitVector = initVector.toString("hex");
+
       const result = await trx.table("OAUTH2_Clients").insert({
         identifier: identifier.toLowerCase(),
         client_secret: hexedInitVector + "|.|" + encryptedData,
