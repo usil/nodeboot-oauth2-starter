@@ -88,7 +88,7 @@ const authControllers = (
 
       const result = await trx.table("OAUTH2_Clients").insert({
         identifier: identifier.toLowerCase(),
-        client_secret: encryptedData,
+        client_secret: hexedInitVector + "|.|" + encryptedData,
         subject_id: firstResult[0],
       });
 
@@ -1503,9 +1503,6 @@ const authControllers = (
       let decryptedData = decipher.update(encryptedSecret, "hex", "utf-8");
 
       decryptedData += decipher.final("utf8");
-
-      console.log(decryptedData);
-      console.log("client_secret", client_secret + decryptedData);
 
       if (client_secret !== decryptedData) {
         return [null, 400001];
