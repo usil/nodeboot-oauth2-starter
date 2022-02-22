@@ -6,13 +6,15 @@ const authSecureRoutes = (
   validateBodyMiddleware,
   jwtSecret,
   jwtExpirationTime = "24h",
-  cryptoSecret = "key"
+  cryptoSecret = "key",
+  clientIdSuffix = "::client.app"
 ) => {
   const controller = authControllers(
     knex,
     jwtSecret,
     jwtExpirationTime,
-    cryptoSecret
+    cryptoSecret,
+    clientIdSuffix
   );
 
   // create user

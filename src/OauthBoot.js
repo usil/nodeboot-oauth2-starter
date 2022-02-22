@@ -4,7 +4,15 @@ const tableCreation = require("./helpers/table-creation.js");
 const authSecureRoutes = require("./helpers/routes/routes.js");
 const generalHelpers = require("./helpers/general-helpers.js");
 class OauthBoot {
-  constructor(expressApp, knex, jwtSecret, cryptoSecret, extraResources = []) {
+  constructor(
+    expressApp,
+    knex,
+    jwtSecret,
+    cryptoSecret,
+    extraResources = [],
+    mainApplicationName = "OAUTH2_main_application",
+    clientIdSuffix = "::client.app"
+  ) {
     this.cryptoSecret = cryptoSecret;
     this.expressApp = expressApp;
     this.knex = knex;
@@ -13,10 +21,14 @@ class OauthBoot {
     this.jwtSecret = jwtSecret;
     this.extraResources = extraResources;
     this.expiresIn = "24h";
+    this.mainApplicationName = mainApplicationName;
+    this.clientIdSuffix = clientIdSuffix;
     this.tableCreationHelper = tableCreation(
       this.knex,
       this.cryptoSecret,
-      this.extraResources
+      this.extraResources,
+      this.mainApplicationName,
+      this.clientIdSuffix
     );
   }
 
@@ -99,7 +111,8 @@ class OauthBoot {
         helper.validateBody,
         this.jwtSecret,
         this.expiresIn,
-        this.cryptoSecret
+        this.cryptoSecret,
+        this.clientIdSuffix
       );
     } catch (error) {
       console.log(error);

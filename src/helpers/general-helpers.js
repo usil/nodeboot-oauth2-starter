@@ -105,6 +105,7 @@ const generalHelpers = () => {
           roles: [],
         };
         if (subjectType === "client") {
+          userObject["client_id"] = usersBaseArray[index].client_id;
           userObject["hasLongLiveToken"] = usersBaseArray[index].access_token
             ? true
             : false;

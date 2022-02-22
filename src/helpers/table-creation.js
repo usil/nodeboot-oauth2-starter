@@ -4,7 +4,13 @@ const randomstring = require("randomstring");
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 
-const tableCreation = (knex, cryptoSecret, extraResources = []) => {
+const tableCreation = (
+  knex,
+  cryptoSecret,
+  extraResources = [],
+  mainApplicationName = "OAUTH2_main_application",
+  clientIdSuffix = "::client.app"
+) => {
   const tableCreationObj = {};
 
   tableCreationObj.tablesExpected = {
@@ -267,7 +273,7 @@ const tableCreation = (knex, cryptoSecret, extraResources = []) => {
   tableCreationObj.trxCreate = async (trx) => {
     try {
       const applicationId = await trx.table("OAUTH2_Applications").insert({
-        identifier: "OAUTH2_master",
+        identifier: mainApplicationName,
       });
 
       const applicationResourceIds = [];
@@ -374,6 +380,9 @@ const tableCreation = (knex, cryptoSecret, extraResources = []) => {
 
       const password = randomstring.generate();
       const clientSecret = randomstring.generate();
+      let clientStringId = randomstring.generate(20);
+
+      clientStringId += clientIdSuffix;
 
       const encryptedPassword = await bcrypt.hash(password, 10);
 
@@ -392,8 +401,9 @@ const tableCreation = (knex, cryptoSecret, extraResources = []) => {
 
       const hexedInitVector = initVector.toString("hex");
 
-      const clientId = await trx.table("OAUTH2_Clients").insert({
+      await trx.table("OAUTH2_Clients").insert({
         identifier: "admin",
+        client_id: clientStringId,
         client_secret: hexedInitVector + "|.|" + encryptedData,
         subject_id: subjectId[0],
       });
@@ -404,7 +414,7 @@ const tableCreation = (knex, cryptoSecret, extraResources = []) => {
           Username: admin \n   
           Password: ${password}
           Credentials for the admin client.\n
-          client_id: ${clientId} \n
+          client_id: ${clientStringId} \n
           client_secret: ${clientSecret}`
       );
 
@@ -452,6 +462,7 @@ const tableCreation = (knex, cryptoSecret, extraResources = []) => {
 
   tableCreationObj.createClientsTable = (table) => {
     table.increments("id");
+    table.string("client_id", 60).unique().notNullable();
     table.integer("subject_id").unsigned().notNullable();
     table.foreign("subject_id").references("OAUTH2_Subjects.id");
     table.string("client_secret", 175).notNullable();
