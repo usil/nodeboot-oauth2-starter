@@ -65,7 +65,10 @@ const security = (knex, expressSecured) => {
 
       if (subjectTableToSearch === "OAUTH2_Clients") {
         const basicUser = (
-          await knex.table(subjectTableToSearch).select().where("id", user.id)
+          await knex
+            .table(subjectTableToSearch)
+            .select()
+            .where("client_id", user.id)
         )[0];
 
         if (basicUser.revoked === true) {
