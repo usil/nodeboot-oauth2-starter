@@ -265,7 +265,7 @@ describe("Table creation works accordingly", () => {
       knex.integer = jest.fn().mockReturnValue(knex);
       knex.unsigned = jest.fn().mockReturnValue(knex);
       knex.notNullable = jest.fn().mockReturnValue(knex);
-      knex.unique = jest.fn();
+      knex.unique = jest.fn().mockReturnValue(knex);
       knex.foreign = jest.fn().mockReturnValue(knex);
       knex.references = jest.fn().mockReturnValue(knex);
       knex.boolean = jest.fn().mockReturnValue(knex);
@@ -286,6 +286,7 @@ describe("Table creation works accordingly", () => {
 
     expect(knexTable.string).toHaveBeenCalledWith("identifier", 100);
     expect(knexTable.string).toHaveBeenCalledWith("access_token", 255);
+    expect(knexTable.string).toHaveBeenCalledWith("client_id", 60);
 
     expect(knexTable.foreign).toHaveBeenCalledWith("subject_id");
     expect(knexTable.references).toHaveBeenCalledWith("OAUTH2_Subjects.id");

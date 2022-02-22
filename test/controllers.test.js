@@ -3507,7 +3507,8 @@ describe("All auth controllers work", () => {
     const knex = {
       table: jest.fn().mockReturnThis(),
       update: jest.fn().mockReturnThis(),
-      where: jest.fn().mockResolvedValue("some"),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockResolvedValue("some"),
     };
 
     const controllers = authControllers(knex, "secret");
@@ -3518,6 +3519,48 @@ describe("All auth controllers work", () => {
     expect(knex.table).toHaveBeenCalledWith("OAUTH2_Clients");
     expect(knex.update).toHaveBeenCalled();
     expect(knex.where).toHaveBeenCalledWith("OAUTH2_Clients.id", "=", 1);
+  });
+
+  test("Handle user token", async () => {
+    const username = "username";
+    const password = "password";
+    const bcryptSpy = jest.spyOn(bcrypt, "compare").mockReturnValue(true);
+    const jwtSpy = jest.spyOn(jwt, "sign").mockReturnValue("token");
+
+    const knex = {
+      table: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      join: jest.fn().mockReturnThis(),
+      update: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockResolvedValue([
+        {
+          id: 1,
+          username: "someUser",
+          roles: "someRole",
+          description: "some description",
+          name: "someName",
+        },
+      ]),
+    };
+
+    const controllers = authControllers(knex, "secret");
+    const result = await controllers.handleUserToken(username, password);
+
+    expect(bcryptSpy).toHaveBeenCalled();
+    expect(result).toStrictEqual([
+      {
+        jwt_token: "token",
+        name: "someName",
+        description: "some description",
+        user_id: 1,
+        username: "someUser",
+        roles: ["someRole"],
+      },
+      null,
+    ]);
+    bcryptSpy.mockRestore();
+    jwtSpy.mockRestore();
   });
 
   test("Remove long live token", async () => {
