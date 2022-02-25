@@ -1382,7 +1382,7 @@ const authControllers = (
 
   controller.token = async (req, res) => {
     try {
-      const grant_type = req.query.grant_type;
+      const grant_type = req.body.grant_type;
 
       if (grant_type !== "client_credentials" && grant_type !== "password") {
         return res.status(400).json({
@@ -1392,7 +1392,7 @@ const authControllers = (
       }
 
       if (grant_type === "client_credentials") {
-        const { client_id, client_secret } = req.query;
+        const { client_id, client_secret } = req.body;
         const [clientResponse, error] = await controller.handleClientToken(
           client_id,
           client_secret

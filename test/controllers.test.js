@@ -3173,7 +3173,7 @@ describe("All auth controllers work", () => {
 
   test("Token generator non grant type", async () => {
     const req = {
-      query: {
+      body: {
         grant_type: "none",
       },
     };
@@ -3197,7 +3197,7 @@ describe("All auth controllers work", () => {
 
   test("Token generator clients", async () => {
     const req = {
-      query: {
+      body: {
         grant_type: "client_credentials",
         client_id: 1,
         client_secret: "secret",
@@ -3227,7 +3227,7 @@ describe("All auth controllers work", () => {
 
   test("Token generator clients error 400001", async () => {
     const req = {
-      query: {
+      body: {
         grant_type: "client_credentials",
         client_id: 1,
         client_secret: "secret",
@@ -3255,7 +3255,7 @@ describe("All auth controllers work", () => {
 
   test("Token generator clients error 400011", async () => {
     const req = {
-      query: {
+      body: {
         grant_type: "client_credentials",
         client_id: 1,
         client_secret: "secret",
@@ -3284,7 +3284,7 @@ describe("All auth controllers work", () => {
 
   test("Token generator clients error 400004", async () => {
     const req = {
-      query: {
+      body: {
         grant_type: "client_credentials",
         client_id: 1,
         client_secret: "secret",
@@ -3312,7 +3312,7 @@ describe("All auth controllers work", () => {
 
   test("Token generator clients error", async () => {
     const req = {
-      query: {
+      body: {
         grant_type: "client_credentials",
         client_id: 1,
         client_secret: "secret",
@@ -3338,10 +3338,8 @@ describe("All auth controllers work", () => {
 
   test("Token generator users", async () => {
     const req = {
-      query: {
-        grant_type: "password",
-      },
       body: {
+        grant_type: "password",
         username: "username",
         password: "secret",
       },
@@ -3372,10 +3370,8 @@ describe("All auth controllers work", () => {
 
   test("Token generator users error 400001", async () => {
     const req = {
-      query: {
-        grant_type: "password",
-      },
       body: {
+        grant_type: "password",
         username: "username",
         password: "secret",
       },
@@ -3403,10 +3399,8 @@ describe("All auth controllers work", () => {
 
   test("Token generator users error 400004", async () => {
     const req = {
-      query: {
-        grant_type: "password",
-      },
       body: {
+        grant_type: "password",
         username: "username",
         password: "secret",
       },
@@ -3434,10 +3428,8 @@ describe("All auth controllers work", () => {
 
   test("Token generator users error", async () => {
     const req = {
-      query: {
-        grant_type: "password",
-      },
       body: {
+        grant_type: "password",
         username: "username",
         password: "secret",
       },
@@ -3463,10 +3455,8 @@ describe("All auth controllers work", () => {
 
   test("Token generator fails", async () => {
     const req = {
-      query: {
-        grant_type: "password",
-      },
       body: {
+        grant_type: "password",
         username: "username",
         password: "secret",
       },
