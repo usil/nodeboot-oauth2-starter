@@ -1642,7 +1642,7 @@ const authControllers = (
 
   controller.generateLongLive = async (req, res) => {
     try {
-      const { remove_long_live, client_id } = req.query;
+      const { remove_long_live } = req.query;
       const { identifier } = req.body;
       const { id } = req.params;
 
@@ -1677,8 +1677,7 @@ const authControllers = (
         .update({
           access_token: encryptedAccessToken,
         })
-        .where("OAUTH2_Clients.id", "=", id)
-        .andWhere("OAUTH2_Clients.client_id", "=", client_id);
+        .where("OAUTH2_Clients.id", "=", id);
 
       return res.status(201).json({
         message: `Token generated`,
