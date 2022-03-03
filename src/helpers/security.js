@@ -64,6 +64,7 @@ const security = (knex, expressSecured) => {
         user.subjectType === "user" ? "username" : "identifier";
 
       if (subjectTableToSearch === "OAUTH2_Clients") {
+        console.log(user.id);
         const basicUser = (
           await knex.table(subjectTableToSearch).select().where("id", user.id)
         )[0];
