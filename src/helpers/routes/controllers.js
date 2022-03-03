@@ -105,7 +105,7 @@ const authControllers = (
         access_token = jwt.sign(
           {
             data: {
-              id: clientStringId,
+              id: result[0],
               subjectType: "client",
               identifier: identifier.toLowerCase(),
             },
