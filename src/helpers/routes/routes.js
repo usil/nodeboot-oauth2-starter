@@ -5,9 +5,17 @@ const authSecureRoutes = (
   knex,
   validateBodyMiddleware,
   jwtSecret,
-  jwtExpirationTime = "24h"
+  jwtExpirationTime = "24h",
+  cryptoSecret = "key",
+  clientIdSuffix = "::client.app"
 ) => {
-  const controller = authControllers(knex, jwtSecret, jwtExpirationTime);
+  const controller = authControllers(
+    knex,
+    jwtSecret,
+    jwtExpirationTime,
+    cryptoSecret,
+    clientIdSuffix
+  );
 
   // create user
   expressSecured.obPost(
@@ -16,6 +24,7 @@ const authSecureRoutes = (
     validateBodyMiddleware({
       username: { type: "string" },
       password: { type: "string" },
+      description: { type: "string" },
       roles: { type: "array" },
       name: { type: "string" },
     }).validate,
@@ -28,6 +37,7 @@ const authSecureRoutes = (
     "OAUTH2_client:create",
     validateBodyMiddleware({
       identifier: { type: "string" },
+      description: { type: "string" },
       roles: { type: "array" },
       name: { type: "string" },
     }).validate,
@@ -55,26 +65,15 @@ const authSecureRoutes = (
     controller.createApplication
   );
 
-  // create application part
+  // create permission
   expressSecured.obPost(
-    "/application/part",
-    "OAUTH2_application:create",
-    validateBodyMiddleware({
-      partIdentifier: { type: "string" },
-      applications_id: { type: "number" },
-    }).validate,
-    controller.createApplicationPart
-  );
-
-  // create option
-  expressSecured.obPost(
-    "/auth/option",
-    "OAUTH2_option:create",
+    "/auth/permission",
+    "OAUTH2_permission:create",
     validateBodyMiddleware({
       allowed: { type: "string" },
-      applicationPart_id: { type: "number" },
+      applicationResource_id: { type: "number" },
     }).validate,
-    controller.createOption
+    controller.createPermission
   );
 
   // get users
@@ -134,7 +133,7 @@ const authSecureRoutes = (
   // delete role
   expressSecured.obDelete(
     "/auth/role/:id",
-    "OAUTH2_client:delete",
+    "OAUTH2_role:delete",
     controller.deleteRole
   );
 
@@ -172,51 +171,51 @@ const authSecureRoutes = (
   // get roles
   expressSecured.obGet("/auth/role", "OAUTH2_role:select", controller.getRoles);
 
-  // get parts
+  // get resources
   expressSecured.obGet(
-    "/auth/part",
+    "/auth/resource",
     "OAUTH2_application:select",
-    controller.getParts
+    controller.getResources
   );
 
-  // update role options
+  // update role permissions
   expressSecured.obPut(
-    "/auth/role/:id/option",
+    "/auth/role/:id/permission",
     "OAUTH2_role:update",
     validateBodyMiddleware({
       newAllowedObject: { type: "object" },
       originalAllowedObject: { type: "object" },
     }).validate,
-    controller.updateRoleOptions
+    controller.updateRolePermissions
   );
 
-  // create a part
+  // create a resource
   expressSecured.obPost(
-    "/auth/part",
+    "/auth/resource",
     "OAUTH2_application:create",
     validateBodyMiddleware({
-      partIdentifier: { type: "string" },
+      resourceIdentifier: { type: "string" },
       applications_id: { type: "number" },
     }).validate,
-    controller.createPart
+    controller.createResource
   );
 
-  // update part options
+  // update resource permissions
   expressSecured.obPut(
-    "/auth/part/:id/option",
+    "/auth/resource/:id/permission",
     "OAUTH2_application:update",
     validateBodyMiddleware({
-      newPartOptions: { type: "array" },
-      originalPartOptions: { type: "array" },
+      newResourcePermissions: { type: "array" },
+      originalResourcePermissions: { type: "array" },
     }).validate,
-    controller.updatePartOptions
+    controller.updateResourcePermissions
   );
 
-  // delete part
+  // delete resource
   expressSecured.obDelete(
-    "/auth/part/:id",
+    "/auth/resource/:id",
     "OAUTH2_application:delete",
-    controller.deletePart
+    controller.deleteResource
   );
 
   // get applications
@@ -234,6 +233,33 @@ const authSecureRoutes = (
       password: { type: "string" },
     }).validate,
     controller.login
+  );
+
+  // Gets a token
+  expressSecured.obPost("/auth/token", ":", controller.token);
+
+  // Revoke tokens
+  expressSecured.obPut(
+    "/auth/client/:id/revoke",
+    "OAUTH2_client:update",
+    controller.revokeToken
+  );
+
+  // Generate long live
+  expressSecured.obPut(
+    "/auth/client/:id/long-live",
+    "OAUTH2_client:update",
+    validateBodyMiddleware({
+      identifier: { type: "string" },
+    }).validate,
+    controller.generateLongLive
+  );
+
+  // The admin gets the client secret
+  expressSecured.obGet(
+    "/auth/client/:id/secret",
+    "OAUTH2_client:select",
+    controller.getClientSecret
   );
 };
 

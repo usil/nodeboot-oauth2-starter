@@ -2,6 +2,7 @@ const authControllers = require("../src/helpers/routes/controllers.js");
 const bcrypt = require("bcrypt");
 const generalHelpers = require("../src/helpers/general-helpers.js");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 
 describe("All auth controllers work", () => {
   test("Creates the user in a transaction", async () => {
@@ -113,6 +114,8 @@ describe("All auth controllers work", () => {
   });
 
   test("Creates the client in a transaction", async () => {
+    const cryptoSpy = jest.spyOn(crypto, "randomBytes");
+
     const reqBody = {
       identifier: "identifier",
       encryptedAccessToken: "encrypted",
@@ -135,6 +138,36 @@ describe("All auth controllers work", () => {
     expect(trxMock.table).toHaveBeenCalledWith("OAUTH2_Clients");
     expect(trxMock.table).toHaveBeenCalledWith("OAUTH2_SubjectRole");
     expect(trxMock.table).toHaveBeenCalledWith("OAUTH2_Subjects");
+    expect(cryptoSpy).toHaveBeenCalled();
+    cryptoSpy.mockRestore();
+  });
+
+  test("Creates the client in a transaction with long live", async () => {
+    const reqBody = {
+      identifier: "identifier",
+      encryptedAccessToken: "encrypted",
+      name: "name",
+      roles: ["admin"],
+    };
+
+    const trxMock = {
+      table: jest.fn().mockReturnThis(),
+      insert: jest.fn().mockResolvedValue([1]),
+      update: jest.fn().mockReturnThis(),
+      where: jest.fn().mockResolvedValue([1]),
+    };
+
+    const knex = {};
+
+    const controllers = authControllers(knex, "secret");
+
+    await controllers.createClientTransaction(trxMock, reqBody, true);
+
+    expect(trxMock.insert).toHaveBeenCalledTimes(3);
+    expect(trxMock.table).toHaveBeenCalledWith("OAUTH2_Clients");
+    expect(trxMock.table).toHaveBeenCalledWith("OAUTH2_SubjectRole");
+    expect(trxMock.table).toHaveBeenCalledWith("OAUTH2_Subjects");
+    expect(trxMock.where).toHaveBeenCalledWith("OAUTH2_Clients.id", "=", 1);
   });
 
   test("Creates the client in a fails", async () => {
@@ -160,13 +193,12 @@ describe("All auth controllers work", () => {
   });
 
   test("Create client", async () => {
-    const bcryptSpy = jest.spyOn(bcrypt, "hash").mockImplementation(() => {
-      return "hashed";
-    });
-
     const mockedReq = {
       body: {
         identifier: "pass",
+      },
+      query: {
+        longLive: true,
       },
     };
 
@@ -183,11 +215,8 @@ describe("All auth controllers work", () => {
 
     await controllers.createClient(mockedReq, mockRes);
 
-    expect(bcryptSpy).toHaveBeenCalled();
     expect(mockRes.status).toHaveBeenCalledWith(201);
     expect(knexMock.transaction).toHaveBeenCalled();
-
-    bcryptSpy.mockRestore();
   });
 
   test("Create client error", async () => {
@@ -237,7 +266,7 @@ describe("All auth controllers work", () => {
     await controllers.createRoleTransaction(trxMock, reqBody);
 
     expect(trxMock.insert).toHaveBeenCalledTimes(2);
-    expect(trxMock.table).toHaveBeenCalledWith("OAUTH2_RoleOption");
+    expect(trxMock.table).toHaveBeenCalledWith("OAUTH2_RolePermission");
     expect(trxMock.table).toHaveBeenCalledWith("OAUTH2_Roles");
   });
 
@@ -360,10 +389,10 @@ describe("All auth controllers work", () => {
     expect(mockRes.status).toHaveBeenCalledWith(500);
   });
 
-  test("Create application part", async () => {
+  test("Create application resource", async () => {
     const mockedReq = {
       body: {
-        partIdentifier: "identifier",
+        resourceIdentifier: "identifier",
         applications_id: 1,
       },
     };
@@ -380,17 +409,17 @@ describe("All auth controllers work", () => {
 
     const controllers = authControllers(knexMock, "secret");
 
-    await controllers.createApplicationPart(mockedReq, mockRes);
+    await controllers.createApplicationResource(mockedReq, mockRes);
 
     expect(mockRes.status).toHaveBeenCalledWith(201);
     expect(mockRes.json).toHaveBeenCalled();
-    expect(knexMock.table).toHaveBeenCalledWith("OAUTH2_ApplicationPart");
+    expect(knexMock.table).toHaveBeenCalledWith("OAUTH2_ApplicationResource");
   });
 
-  test("Create application part error", async () => {
+  test("Create application resource error", async () => {
     const mockedReq = {
       body: {
-        partIdentifier: "identifier",
+        resourceIdentifier: "identifier",
         applications_id: 1,
       },
     };
@@ -407,16 +436,16 @@ describe("All auth controllers work", () => {
 
     const controllers = authControllers(knexMock, "secret");
 
-    await controllers.createApplicationPart(mockedReq, mockRes);
+    await controllers.createApplicationResource(mockedReq, mockRes);
 
     expect(mockRes.status).toHaveBeenCalledWith(500);
   });
 
-  test("Create option", async () => {
+  test("Create permission", async () => {
     const mockedReq = {
       body: {
         allowed: "allowed",
-        applicationPart_id: 1,
+        applicationResource_id: 1,
       },
     };
 
@@ -432,18 +461,18 @@ describe("All auth controllers work", () => {
 
     const controllers = authControllers(knexMock, "secret");
 
-    await controllers.createOption(mockedReq, mockRes);
+    await controllers.createPermission(mockedReq, mockRes);
 
     expect(mockRes.status).toHaveBeenCalledWith(201);
     expect(mockRes.json).toHaveBeenCalled();
-    expect(knexMock.table).toHaveBeenCalledWith("OAUTH2_Options");
+    expect(knexMock.table).toHaveBeenCalledWith("OAUTH2_Permissions");
   });
 
-  test("Create option error", async () => {
+  test("Create permission error", async () => {
     const mockedReq = {
       body: {
         allowed: "allowed",
-        applicationPart_id: 1,
+        applicationResource_id: 1,
       },
     };
 
@@ -459,7 +488,7 @@ describe("All auth controllers work", () => {
 
     const controllers = authControllers(knexMock, "secret");
 
-    await controllers.createOption(mockedReq, mockRes);
+    await controllers.createPermission(mockedReq, mockRes);
 
     expect(mockRes.status).toHaveBeenCalledWith(500);
   });
@@ -487,8 +516,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 1,
         roleIdentifier: "rol1",
-        partId: 1,
-        applicationPart: "part1",
+        resourceId: 1,
+        applicationResource: "resource1",
         allowed: "*",
       },
       {
@@ -499,8 +528,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 1,
         roleIdentifier: "rol1",
-        partId: 1,
-        applicationPart: "part1",
+        resourceId: 1,
+        applicationResource: "resource1",
         allowed: "select",
       },
       {
@@ -511,8 +540,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 3,
-        applicationPart: "part3",
+        resourceId: 3,
+        applicationResource: "resource3",
         allowed: "select",
       },
       {
@@ -523,8 +552,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 4,
-        applicationPart: "part4",
+        resourceId: 4,
+        applicationResource: "resource4",
         allowed: "*",
       },
       {
@@ -535,8 +564,8 @@ describe("All auth controllers work", () => {
         roleDeleted: true,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 4,
-        applicationPart: "part4",
+        resourceId: 4,
+        applicationResource: "resource4",
         allowed: "*",
       },
     ];
@@ -603,8 +632,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 1,
         roleIdentifier: "rol1",
-        partId: 1,
-        applicationPart: "part1",
+        resourceId: 1,
+        applicationResource: "resource1",
         allowed: "*",
       },
       {
@@ -615,8 +644,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 1,
         roleIdentifier: "rol1",
-        partId: 1,
-        applicationPart: "part1",
+        resourceId: 1,
+        applicationResource: "resource1",
         allowed: "select",
       },
       {
@@ -627,8 +656,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 3,
-        applicationPart: "part3",
+        resourceId: 3,
+        applicationResource: "resource3",
         allowed: "select",
       },
       {
@@ -639,8 +668,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 4,
-        applicationPart: "part4",
+        resourceId: 4,
+        applicationResource: "resource4",
         allowed: "*",
       },
       {
@@ -651,8 +680,8 @@ describe("All auth controllers work", () => {
         roleDeleted: true,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 4,
-        applicationPart: "part4",
+        resourceId: 4,
+        applicationResource: "resource4",
         allowed: "*",
       },
     ];
@@ -758,8 +787,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 1,
         roleIdentifier: "rol1",
-        partId: 1,
-        applicationPart: "part1",
+        resourceId: 1,
+        applicationResource: "resource1",
         allowed: "*",
       },
       {
@@ -770,8 +799,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 1,
         roleIdentifier: "rol1",
-        partId: 1,
-        applicationPart: "part1",
+        resourceId: 1,
+        applicationResource: "resource1",
         allowed: "select",
       },
       {
@@ -782,8 +811,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 3,
-        applicationPart: "part3",
+        resourceId: 3,
+        applicationResource: "resource3",
         allowed: "select",
       },
       {
@@ -794,8 +823,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 4,
-        applicationPart: "part4",
+        resourceId: 4,
+        applicationResource: "resource4",
         allowed: "*",
       },
     ];
@@ -814,11 +843,12 @@ describe("All auth controllers work", () => {
     expect(mockKnex.select).toHaveBeenCalledWith(
       "OAUTH2_Users.id",
       "OAUTH2_Users.username",
+      "OAUTH2_Subjects.description",
       "OAUTH2_Subjects.id as subjectId",
       "OAUTH2_Subjects.name",
-      "OAUTH2_ApplicationPart.partIdentifier as applicationPart",
-      "OAUTH2_ApplicationPart.id as partId",
-      "OAUTH2_Options.allowed",
+      "OAUTH2_ApplicationResource.resourceIdentifier as applicationResource",
+      "OAUTH2_ApplicationResource.id as resourceId",
+      "OAUTH2_Permissions.allowed",
       "OAUTH2_Roles.id as roleId",
       "OAUTH2_Roles.identifier as roleIdentifier"
     );
@@ -842,9 +872,9 @@ describe("All auth controllers work", () => {
     );
 
     expect(mockKnex.join).toHaveBeenCalledWith(
-      "OAUTH2_ApplicationPart",
-      `OAUTH2_ApplicationPart.id`,
-      "OAUTH2_Options.applicationPart_id"
+      "OAUTH2_ApplicationResource",
+      `OAUTH2_ApplicationResource.id`,
+      "OAUTH2_Permissions.applicationResource_id"
     );
 
     expect(mockRes.status).toHaveBeenCalledWith(200);
@@ -917,8 +947,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 1,
         roleIdentifier: "rol1",
-        partId: 1,
-        applicationPart: "part1",
+        resourceId: 1,
+        applicationResource: "resource1",
         allowed: "*",
       },
       {
@@ -929,8 +959,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 1,
         roleIdentifier: "rol1",
-        partId: 1,
-        applicationPart: "part1",
+        resourceId: 1,
+        applicationResource: "resource1",
         allowed: "select",
       },
       {
@@ -941,8 +971,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 3,
-        applicationPart: "part3",
+        resourceId: 3,
+        applicationResource: "resource3",
         allowed: "select",
       },
       {
@@ -953,8 +983,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 4,
-        applicationPart: "part4",
+        resourceId: 4,
+        applicationResource: "resource4",
         allowed: "*",
       },
     ];
@@ -986,11 +1016,12 @@ describe("All auth controllers work", () => {
     expect(mockKnex.select).toHaveBeenCalledWith(
       "OAUTH2_Users.id",
       "OAUTH2_Users.username",
+      "OAUTH2_Subjects.description",
       "OAUTH2_Subjects.id as subjectId",
       "OAUTH2_Subjects.name",
-      "OAUTH2_ApplicationPart.partIdentifier as applicationPart",
-      "OAUTH2_ApplicationPart.id as partId",
-      "OAUTH2_Options.allowed",
+      "OAUTH2_ApplicationResource.resourceIdentifier as applicationResource",
+      "OAUTH2_ApplicationResource.id as resourceId",
+      "OAUTH2_Permissions.allowed",
       "OAUTH2_Roles.id as roleId",
       "OAUTH2_Roles.deleted as roleDeleted",
       "OAUTH2_Roles.identifier as roleIdentifier"
@@ -1009,8 +1040,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 1,
         roleIdentifier: "rol1",
-        partId: 1,
-        applicationPart: "part1",
+        resourceId: 1,
+        applicationResource: "resource1",
         allowed: "*",
       },
       {
@@ -1021,8 +1052,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 1,
         roleIdentifier: "rol1",
-        partId: 1,
-        applicationPart: "part1",
+        resourceId: 1,
+        applicationResource: "resource1",
         allowed: "select",
       },
       {
@@ -1033,8 +1064,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 3,
-        applicationPart: "part3",
+        resourceId: 3,
+        applicationResource: "resource3",
         allowed: "select",
       },
       {
@@ -1045,8 +1076,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 4,
-        applicationPart: "part4",
+        resourceId: 4,
+        applicationResource: "resource4",
         allowed: "*",
       },
     ];
@@ -1087,8 +1118,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 1,
         roleIdentifier: "rol1",
-        partId: 1,
-        applicationPart: "part1",
+        resourceId: 1,
+        applicationResource: "resource1",
         allowed: "*",
       },
       {
@@ -1099,8 +1130,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 1,
         roleIdentifier: "rol1",
-        partId: 1,
-        applicationPart: "part1",
+        resourceId: 1,
+        applicationResource: "resource1",
         allowed: "select",
       },
       {
@@ -1111,8 +1142,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 3,
-        applicationPart: "part3",
+        resourceId: 3,
+        applicationResource: "resource3",
         allowed: "select",
       },
       {
@@ -1123,8 +1154,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 4,
-        applicationPart: "part4",
+        resourceId: 4,
+        applicationResource: "resource4",
         allowed: "*",
       },
     ];
@@ -1211,8 +1242,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 1,
         roleIdentifier: "rol1",
-        partId: 1,
-        applicationPart: "part1",
+        resourceId: 1,
+        applicationResource: "resource1",
         allowed: "*",
       },
       {
@@ -1223,8 +1254,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 1,
         roleIdentifier: "rol1",
-        partId: 1,
-        applicationPart: "part1",
+        resourceId: 1,
+        applicationResource: "resource1",
         allowed: "select",
       },
       {
@@ -1235,8 +1266,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 3,
-        applicationPart: "part3",
+        resourceId: 3,
+        applicationResource: "resource3",
         allowed: "select",
       },
       {
@@ -1247,8 +1278,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 4,
-        applicationPart: "part4",
+        resourceId: 4,
+        applicationResource: "resource4",
         allowed: "*",
       },
       {
@@ -1259,8 +1290,8 @@ describe("All auth controllers work", () => {
         roleDeleted: true,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 4,
-        applicationPart: "part4",
+        resourceId: 4,
+        applicationResource: "resource4",
         allowed: "*",
       },
     ];
@@ -1364,8 +1395,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 1,
         roleIdentifier: "rol1",
-        partId: 1,
-        applicationPart: "part1",
+        resourceId: 1,
+        applicationResource: "resource1",
         allowed: "*",
       },
       {
@@ -1376,8 +1407,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 1,
         roleIdentifier: "rol1",
-        partId: 1,
-        applicationPart: "part1",
+        resourceId: 1,
+        applicationResource: "resource1",
         allowed: "select",
       },
       {
@@ -1388,8 +1419,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 3,
-        applicationPart: "part3",
+        resourceId: 3,
+        applicationResource: "resource3",
         allowed: "select",
       },
       {
@@ -1400,8 +1431,8 @@ describe("All auth controllers work", () => {
         roleDeleted: false,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 4,
-        applicationPart: "part4",
+        resourceId: 4,
+        applicationResource: "resource4",
         allowed: "*",
       },
       {
@@ -1412,8 +1443,8 @@ describe("All auth controllers work", () => {
         roleDeleted: true,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 4,
-        applicationPart: "part4",
+        resourceId: 4,
+        applicationResource: "resource4",
         allowed: "*",
       },
     ];
@@ -2164,34 +2195,34 @@ describe("All auth controllers work", () => {
       {
         id: 1,
         identifier: "rol1",
-        partId: 1,
-        applicationPart: "partName1",
+        resourceId: 1,
+        applicationResource: "resourceName1",
         allowed: "*",
-        optionId: 1,
+        permissionId: 1,
       },
       {
         id: 1,
         identifier: "rol1",
-        partId: 1,
-        applicationPart: "partName1",
+        resourceId: 1,
+        applicationResource: "resourceName1",
         allowed: "select",
-        optionId: 2,
+        permissionId: 2,
       },
       {
         id: 2,
         identifier: "rol2",
-        partId: 1,
-        applicationPart: "partName2",
+        resourceId: 1,
+        applicationResource: "resourceName2",
         allowed: "*",
-        optionId: 3,
+        permissionId: 3,
       },
       {
         id: 2,
         identifier: "rol2",
-        partId: 1,
-        applicationPart: "partName3",
+        resourceId: 1,
+        applicationResource: "resourceName3",
         allowed: "create",
-        optionId: 4,
+        permissionId: 4,
       },
     ];
 
@@ -2252,34 +2283,34 @@ describe("All auth controllers work", () => {
       {
         id: 1,
         identifier: "rol1",
-        partId: 1,
-        applicationPart: "partName1",
+        resourceId: 1,
+        applicationResource: "resourceName1",
         allowed: "*",
-        optionId: 1,
+        permissionId: 1,
       },
       {
         id: 1,
         identifier: "rol1",
-        partId: 1,
-        applicationPart: "partName1",
+        resourceId: 1,
+        applicationResource: "resourceName1",
         allowed: "select",
-        optionId: 2,
+        permissionId: 2,
       },
       {
         id: 2,
         identifier: "rol2",
-        partId: 1,
-        applicationPart: "partName2",
+        resourceId: 1,
+        applicationResource: "resourceName2",
         allowed: "*",
-        optionId: 3,
+        permissionId: 3,
       },
       {
         id: 2,
         identifier: "rol2",
-        partId: 1,
-        applicationPart: "partName3",
+        resourceId: 1,
+        applicationResource: "resourceName3",
         allowed: "create",
-        optionId: 4,
+        permissionId: 4,
       },
     ];
 
@@ -2359,7 +2390,7 @@ describe("All auth controllers work", () => {
     expect(mockRes.status).toHaveBeenCalledWith(500);
   });
 
-  test("Select parts basic", async () => {
+  test("Select resource basic", async () => {
     const knex = () => {
       const knexObjs = {};
       knexObjs.table = jest.fn().mockReturnValue(knexObjs);
@@ -2370,10 +2401,10 @@ describe("All auth controllers work", () => {
         .mockReturnValueOnce(knexObjs)
         .mockReturnValueOnce([
           {
-            partId: 1,
-            applicationPartName: "partName1",
+            resourceId: 1,
+            applicationResourceName: "resourceName1",
             allowed: "*",
-            optionId: 1,
+            permissionId: 1,
           },
         ]);
       return knexObjs;
@@ -2394,42 +2425,42 @@ describe("All auth controllers work", () => {
 
     const helpers = generalHelpers();
 
-    const parsedParts = helpers.parsePartSearch([
+    const parsedResources = helpers.parseResourceSearch([
       {
-        partId: 1,
-        applicationPartName: "partName1",
+        resourceId: 1,
+        applicationResourceName: "resourceName1",
         allowed: "*",
-        optionId: 1,
+        permissionId: 1,
       },
     ]);
 
     const controllers = authControllers(mockKnex, "secret");
 
-    await controllers.getParts(req, res);
+    await controllers.getResources(req, res);
 
-    expect(mockKnex.table).toHaveBeenCalledWith("OAUTH2_ApplicationPart");
+    expect(mockKnex.table).toHaveBeenCalledWith("OAUTH2_ApplicationResource");
 
     expect(mockKnex.where).toHaveBeenCalledWith(
-      "OAUTH2_ApplicationPart.deleted",
+      "OAUTH2_ApplicationResource.deleted",
       false
     );
 
     expect(mockKnex.select).toHaveBeenCalledWith(
-      "OAUTH2_ApplicationPart.partIdentifier as applicationPartName",
-      "OAUTH2_ApplicationPart.id as partId",
-      "OAUTH2_Options.allowed",
-      "OAUTH2_Options.id as optionId"
+      "OAUTH2_ApplicationResource.resourceIdentifier as applicationResourceName",
+      "OAUTH2_ApplicationResource.id as resourceId",
+      "OAUTH2_Permissions.allowed",
+      "OAUTH2_Permissions.id as permissionId"
     );
 
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       code: 200000,
       message: "Select completed",
-      content: parsedParts,
+      content: parsedResources,
     });
   });
 
-  test("Select parts with pagination", async () => {
+  test("Select resource with pagination", async () => {
     const mockedReq = {
       query: {
         itemsPerPage: 10,
@@ -2443,30 +2474,30 @@ describe("All auth controllers work", () => {
       json: jest.fn(),
     };
 
-    const partsBaseArray = [
+    const resourcesBaseArray = [
       {
-        partId: 1,
-        applicationPartName: "partName1",
+        resourceId: 1,
+        applicationResourceName: "resourceName1",
         allowed: "*",
-        optionId: 1,
+        permissionId: 1,
       },
       {
-        partId: 2,
-        applicationPartName: "partName2",
+        resourceId: 2,
+        applicationResourceName: "resourceName2",
         allowed: "*",
-        optionId: 2,
+        permissionId: 2,
       },
       {
-        partId: 3,
-        applicationPartName: "partName3",
+        resourceId: 3,
+        applicationResourceName: "resourceName3",
         allowed: "select",
-        optionId: 3,
+        permissionId: 3,
       },
       {
-        partId: 3,
-        applicationPartName: "partName3",
+        resourceId: 3,
+        applicationResourceName: "resourceName3",
         allowed: "create",
-        optionId: 4,
+        permissionId: 4,
       },
     ];
 
@@ -2474,7 +2505,7 @@ describe("All auth controllers work", () => {
       const knex = {};
       knex.limit = jest.fn().mockReturnValue(knex);
       knex.offset = jest.fn().mockReturnValue(knex);
-      knex.orderBy = jest.fn().mockResolvedValue(partsBaseArray);
+      knex.orderBy = jest.fn().mockResolvedValue(resourcesBaseArray);
       knex.select = jest.fn().mockReturnValue(knex);
       knex.where = jest.fn().mockReturnValue(knex);
       knex.table = jest.fn().mockReturnValue(knex);
@@ -2485,15 +2516,15 @@ describe("All auth controllers work", () => {
 
     const helper = generalHelpers();
 
-    const parsedParts = helper.parsePartSearch(partsBaseArray);
+    const parsedResources = helper.parseResourceSearch(resourcesBaseArray);
 
     const controllers = authControllers(knexMock, "secret");
 
-    await controllers.getParts(mockedReq, mockRes);
+    await controllers.getResources(mockedReq, mockRes);
 
     expect(knexMock).toHaveBeenCalledTimes(3);
 
-    expect(knexMock).toHaveBeenCalledWith("OAUTH2_ApplicationPart");
+    expect(knexMock).toHaveBeenCalledWith("OAUTH2_ApplicationResource");
 
     expect(mockRes.status).toHaveBeenCalledWith(200);
 
@@ -2501,7 +2532,7 @@ describe("All auth controllers work", () => {
       code: 200000,
       message: "Select completed",
       content: {
-        items: parsedParts,
+        items: parsedResources,
         pageIndex: 1,
         itemsPerPage: 10,
         totalItems: 2,
@@ -2510,7 +2541,7 @@ describe("All auth controllers work", () => {
     });
   });
 
-  test("Select parts with pagination no query", async () => {
+  test("Select resources with pagination no query", async () => {
     const mockedReq = {
       query: {},
     };
@@ -2520,30 +2551,30 @@ describe("All auth controllers work", () => {
       json: jest.fn(),
     };
 
-    const partsBaseArray = [
+    const resourcesBaseArray = [
       {
-        partId: 1,
-        applicationPartName: "partName1",
+        resourceId: 1,
+        applicationResourceName: "resourceName1",
         allowed: "*",
-        optionId: 1,
+        permissionId: 1,
       },
       {
-        partId: 2,
-        applicationPartName: "partName2",
+        resourceId: 2,
+        applicationResourceName: "resourceName2",
         allowed: "*",
-        optionId: 2,
+        permissionId: 2,
       },
       {
-        partId: 3,
-        applicationPartName: "partName3",
+        resourceId: 3,
+        applicationResourceName: "resourceName3",
         allowed: "select",
-        optionId: 3,
+        permissionId: 3,
       },
       {
-        partId: 3,
-        applicationPartName: "partName3",
+        resourceId: 3,
+        applicationResourceName: "resourceName3",
         allowed: "create",
-        optionId: 4,
+        permissionId: 4,
       },
     ];
 
@@ -2551,7 +2582,7 @@ describe("All auth controllers work", () => {
       const knex = {};
       knex.limit = jest.fn().mockReturnValue(knex);
       knex.offset = jest.fn().mockReturnValue(knex);
-      knex.orderBy = jest.fn().mockResolvedValue(partsBaseArray);
+      knex.orderBy = jest.fn().mockResolvedValue(resourcesBaseArray);
       knex.select = jest.fn().mockReturnValue(knex);
       knex.where = jest.fn().mockReturnValue(knex);
       knex.table = jest.fn().mockReturnValue(knex);
@@ -2562,15 +2593,15 @@ describe("All auth controllers work", () => {
 
     const helper = generalHelpers();
 
-    const parsedParts = helper.parsePartSearch(partsBaseArray);
+    const parsedResources = helper.parseResourceSearch(resourcesBaseArray);
 
     const controllers = authControllers(knexMock, "secret");
 
-    await controllers.getParts(mockedReq, mockRes);
+    await controllers.getResources(mockedReq, mockRes);
 
     expect(knexMock).toHaveBeenCalledTimes(3);
 
-    expect(knexMock).toHaveBeenCalledWith("OAUTH2_ApplicationPart");
+    expect(knexMock).toHaveBeenCalledWith("OAUTH2_ApplicationResource");
 
     expect(mockRes.status).toHaveBeenCalledWith(200);
 
@@ -2578,7 +2609,7 @@ describe("All auth controllers work", () => {
       code: 200000,
       message: "Select completed",
       content: {
-        items: parsedParts,
+        items: parsedResources,
         pageIndex: 0,
         itemsPerPage: 5,
         totalItems: 2,
@@ -2587,7 +2618,7 @@ describe("All auth controllers work", () => {
     });
   });
 
-  test("Select parts with pagination fails", async () => {
+  test("Select resources with pagination fails", async () => {
     const mockedReq = {
       query: {
         itemsPerPage: 10,
@@ -2616,18 +2647,18 @@ describe("All auth controllers work", () => {
 
     const controllers = authControllers(knexMock, "secret");
 
-    await controllers.getParts(mockedReq, mockRes);
+    await controllers.getResources(mockedReq, mockRes);
 
     expect(mockRes.status).toHaveBeenCalledWith(500);
   });
 
-  test("Update role options transaction", async () => {
+  test("Update role permissions transaction", async () => {
     const reqBody = {
       newAllowedObject: {
-        option: [{ id: 1 }],
+        permission: [{ id: 1 }],
       },
       originalAllowedObject: {
-        option: [{ id: 2 }],
+        permission: [{ id: 2 }],
       },
     };
 
@@ -2644,19 +2675,23 @@ describe("All auth controllers work", () => {
 
     const controllers = authControllers(knex, "secret");
 
-    await controllers.updateRoleOptionsTransaction(trxMock, roleId, reqBody);
+    await controllers.updateRolePermissionsTransaction(
+      trxMock,
+      roleId,
+      reqBody
+    );
 
     expect(trxMock.del).toHaveBeenCalledTimes(1);
-    expect(trxMock.table).toHaveBeenCalledWith("OAUTH2_RoleOption");
+    expect(trxMock.table).toHaveBeenCalledWith("OAUTH2_RolePermission");
   });
 
-  test("Update role options transaction second branch", async () => {
+  test("Update role permissions transaction second branch", async () => {
     const reqBody = {
       newAllowedObject: {
-        option: [{ id: 2 }],
+        permission: [{ id: 2 }],
       },
       originalAllowedObject: {
-        option: [{ id: 2 }],
+        permission: [{ id: 2 }],
       },
     };
 
@@ -2673,18 +2708,22 @@ describe("All auth controllers work", () => {
 
     const controllers = authControllers(knex, "secret");
 
-    await controllers.updateRoleOptionsTransaction(trxMock, roleId, reqBody);
+    await controllers.updateRolePermissionsTransaction(
+      trxMock,
+      roleId,
+      reqBody
+    );
 
     expect(trxMock.table).not.toHaveBeenCalled();
   });
 
-  test("Update role options transaction fails", async () => {
+  test("Update role permissions transaction fails", async () => {
     const reqBody = {
       newAllowedObject: {
-        option: [{ id: 1 }],
+        permission: [{ id: 1 }],
       },
       originalAllowedObject: {
-        option: [{ id: 2 }],
+        permission: [{ id: 2 }],
       },
     };
 
@@ -2702,11 +2741,11 @@ describe("All auth controllers work", () => {
     const controllers = authControllers(knex, "secret");
 
     await expect(
-      controllers.updateRoleOptionsTransaction(trxMock, roleId, reqBody)
+      controllers.updateRolePermissionsTransaction(trxMock, roleId, reqBody)
     ).rejects.toThrow();
   });
 
-  test("Update role options", async () => {
+  test("Update role permissions", async () => {
     const knex = {
       transaction: jest.fn(),
     };
@@ -2721,13 +2760,13 @@ describe("All auth controllers work", () => {
       json: jest.fn().mockResolvedValue([1]),
     };
     const controllers = authControllers(knex, "secret");
-    await controllers.updateRoleOptions(req, res);
+    await controllers.updateRolePermissions(req, res);
 
     expect(knex.transaction).toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(201);
   });
 
-  test("Update role options fails", async () => {
+  test("Update role permissions fails", async () => {
     const knex = {
       transaction: jest.fn().mockRejectedValueOnce(new Error("Async error")),
     };
@@ -2742,15 +2781,15 @@ describe("All auth controllers work", () => {
       json: jest.fn().mockResolvedValue([1]),
     };
     const controllers = authControllers(knex, "secret");
-    await controllers.updateRoleOptions(req, res);
+    await controllers.updateRolePermissions(req, res);
 
     expect(res.status).toHaveBeenCalledWith(500);
   });
 
-  test("Update part options transaction", async () => {
+  test("Update resource permissions transaction", async () => {
     const reqBody = {
-      newPartOptions: [{ allowed: "*" }],
-      originalPartOptions: [{ allowed: "select" }],
+      newResourcePermissions: [{ allowed: "*" }],
+      originalResourcePermissions: [{ allowed: "select" }],
     };
 
     const roleId = 1;
@@ -2766,16 +2805,20 @@ describe("All auth controllers work", () => {
 
     const controllers = authControllers(knex, "secret");
 
-    await controllers.updatePartOptionsTransaction(trxMock, roleId, reqBody);
+    await controllers.updateResourcePermissionsTransaction(
+      trxMock,
+      roleId,
+      reqBody
+    );
 
     expect(trxMock.update).toHaveBeenCalledTimes(1);
-    expect(trxMock.table).toHaveBeenCalledWith("OAUTH2_Options");
+    expect(trxMock.table).toHaveBeenCalledWith("OAUTH2_Permissions");
   });
 
-  test("Update part options transaction second branch", async () => {
+  test("Update resource permissions transaction second branch", async () => {
     const reqBody = {
-      newPartOptions: [{ allowed: "*" }],
-      originalPartOptions: [{ allowed: "*" }],
+      newResourcePermissions: [{ allowed: "*" }],
+      originalResourcePermissions: [{ allowed: "*" }],
     };
 
     const roleId = 1;
@@ -2791,15 +2834,19 @@ describe("All auth controllers work", () => {
 
     const controllers = authControllers(knex, "secret");
 
-    await controllers.updatePartOptionsTransaction(trxMock, roleId, reqBody);
+    await controllers.updateResourcePermissionsTransaction(
+      trxMock,
+      roleId,
+      reqBody
+    );
 
     expect(trxMock.insert).not.toHaveBeenCalled();
   });
 
-  test("Update part options transaction fails", async () => {
+  test("Update resource permissions transaction fails", async () => {
     const reqBody = {
-      newPartOptions: [{ allowed: "*" }],
-      originalPartOptions: [{ allowed: "select" }],
+      newResourcePermissions: [{ allowed: "*" }],
+      originalResourcePermissions: [{ allowed: "select" }],
     };
 
     const roleId = 1;
@@ -2816,11 +2863,11 @@ describe("All auth controllers work", () => {
     const controllers = authControllers(knex, "secret");
 
     await expect(
-      controllers.updatePartOptionsTransaction(trxMock, roleId, reqBody)
+      controllers.updateResourcePermissionsTransaction(trxMock, roleId, reqBody)
     ).rejects.toThrow();
   });
 
-  test("Update part options", async () => {
+  test("Update resources permissions", async () => {
     const knex = {
       transaction: jest.fn(),
     };
@@ -2835,13 +2882,13 @@ describe("All auth controllers work", () => {
       json: jest.fn().mockResolvedValue([1]),
     };
     const controllers = authControllers(knex, "secret");
-    await controllers.updatePartOptions(req, res);
+    await controllers.updateResourcePermissions(req, res);
 
     expect(knex.transaction).toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(201);
   });
 
-  test("Update part options fails", async () => {
+  test("Update resources permissions fails", async () => {
     const knex = {
       transaction: jest.fn().mockRejectedValueOnce(new Error("Async error")),
     };
@@ -2856,15 +2903,15 @@ describe("All auth controllers work", () => {
       json: jest.fn().mockResolvedValue([1]),
     };
     const controllers = authControllers(knex, "secret");
-    await controllers.updatePartOptions(req, res);
+    await controllers.updateResourcePermissions(req, res);
 
     expect(res.status).toHaveBeenCalledWith(500);
   });
 
-  test("Create part fails", async () => {
+  test("Create resource fails", async () => {
     const req = {
       body: {
-        partIdentifier: "ident",
+        resourceIdentifier: "ident",
         applications_id: 1,
       },
     };
@@ -2880,28 +2927,28 @@ describe("All auth controllers work", () => {
     };
 
     const controllers = authControllers(knex, "secret");
-    await controllers.createPart(req, res);
+    await controllers.createResource(req, res);
 
-    expect(knex.table).toHaveBeenCalledWith("OAUTH2_ApplicationPart");
-    expect(knex.table).toHaveBeenCalledWith("OAUTH2_Options");
+    expect(knex.table).toHaveBeenCalledWith("OAUTH2_ApplicationResource");
+    expect(knex.table).toHaveBeenCalledWith("OAUTH2_Permissions");
 
-    const optionsToInsert = [
-      { allowed: "*", applicationPart_id: 1 },
-      { allowed: "create", applicationPart_id: 1 },
-      { allowed: "update", applicationPart_id: 1 },
-      { allowed: "delete", applicationPart_id: 1 },
-      { allowed: "select", applicationPart_id: 1 },
+    const permissionsToInsert = [
+      { allowed: "*", applicationResource_id: 1 },
+      { allowed: "create", applicationResource_id: 1 },
+      { allowed: "update", applicationResource_id: 1 },
+      { allowed: "delete", applicationResource_id: 1 },
+      { allowed: "select", applicationResource_id: 1 },
     ];
 
-    expect(knex.insert).toHaveBeenCalledWith(optionsToInsert);
+    expect(knex.insert).toHaveBeenCalledWith(permissionsToInsert);
 
     expect(res.status).toHaveBeenCalledWith(201);
   });
 
-  test("Create part", async () => {
+  test("Create resource", async () => {
     const req = {
       body: {
-        partIdentifier: "ident",
+        resourceIdentifier: "ident",
         applications_id: 1,
       },
     };
@@ -2917,13 +2964,13 @@ describe("All auth controllers work", () => {
     };
 
     const controllers = authControllers(knex, "secret");
-    await controllers.createPart(req, res);
+    await controllers.createResource(req, res);
 
     expect(res.status).toHaveBeenCalledWith(500);
   });
 
-  test("Delete part transaction", async () => {
-    const partId = 1;
+  test("Delete resource transaction", async () => {
+    const resourceId = 1;
 
     const trxMock = {
       table: jest.fn().mockReturnThis(),
@@ -2934,14 +2981,14 @@ describe("All auth controllers work", () => {
     const knex = {};
 
     const controllers = authControllers(knex, "secret");
-    await controllers.deletePartTransaction(trxMock, partId);
+    await controllers.deleteResourceTransaction(trxMock, resourceId);
 
-    expect(trxMock.table).toHaveBeenCalledWith("OAUTH2_ApplicationPart");
-    expect(trxMock.table).toHaveBeenCalledWith("OAUTH2_Options");
+    expect(trxMock.table).toHaveBeenCalledWith("OAUTH2_ApplicationResource");
+    expect(trxMock.table).toHaveBeenCalledWith("OAUTH2_Permissions");
   });
 
-  test("Delete part transaction fails", async () => {
-    const partId = 1;
+  test("Delete resource transaction fails", async () => {
+    const resourceId = 1;
 
     const trxMock = {
       table: jest.fn().mockReturnThis(),
@@ -2953,11 +3000,11 @@ describe("All auth controllers work", () => {
 
     const controllers = authControllers(knex, "secret");
     await expect(
-      controllers.deletePartTransaction(trxMock, partId)
+      controllers.deleteResourceTransaction(trxMock, resourceId)
     ).rejects.toThrow();
   });
 
-  test("Delete parts", async () => {
+  test("Delete resource", async () => {
     const req = {
       params: {
         id: 1,
@@ -2974,13 +3021,13 @@ describe("All auth controllers work", () => {
     };
 
     const controllers = authControllers(knex, "secret");
-    await controllers.deletePart(req, res);
+    await controllers.deleteResource(req, res);
 
     expect(knex.transaction).toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(201);
   });
 
-  test("Delete parts fails", async () => {
+  test("Delete resource fails", async () => {
     const req = {
       params: {
         id: 1,
@@ -2997,7 +3044,7 @@ describe("All auth controllers work", () => {
     };
 
     const controllers = authControllers(knex, "secret");
-    await controllers.deletePart(req, res);
+    await controllers.deleteResource(req, res);
 
     expect(res.status).toHaveBeenCalledWith(500);
   });
@@ -3081,5 +3128,704 @@ describe("All auth controllers work", () => {
 
     bcryptSpy.mockRestore();
     jwtSpy.mockRestore();
+  });
+
+  test("Login fails", async () => {
+    const bcryptSpy = jest.spyOn(bcrypt, "compare").mockImplementation(() => {
+      return true;
+    });
+    const jwtSpy = jest.spyOn(jwt, "sign").mockImplementation(() => {
+      throw new Error("Async error");
+    });
+    const req = {
+      body: {
+        username: "admin",
+        password: "password",
+      },
+    };
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn().mockResolvedValue([1]),
+    };
+    const knex = {
+      table: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      join: jest.fn().mockReturnThis(),
+      where: jest.fn().mockResolvedValue([
+        {
+          username: "admin",
+          roles: "admin",
+          id: 1,
+          name: "Admin",
+          password: "password",
+        },
+      ]),
+    };
+
+    const controllers = authControllers(knex, "secret");
+    await controllers.login(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+
+    bcryptSpy.mockRestore();
+    jwtSpy.mockRestore();
+  });
+
+  test("Token generator non grant type", async () => {
+    const req = {
+      body: {
+        grant_type: "none",
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knex = {};
+
+    const controllers = authControllers(knex, "secret");
+    await controllers.token(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      code: 400400,
+      message: "Unsupported grand type",
+    });
+  });
+
+  test("Token generator clients", async () => {
+    const req = {
+      body: {
+        grant_type: "client_credentials",
+        client_id: 1,
+        client_secret: "secret",
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knex = {};
+
+    const controllers = authControllers(knex, "secret");
+    controllers.handleClientToken = jest
+      .fn()
+      .mockResolvedValue([{ result: "result" }, null]);
+    await controllers.token(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.json).toHaveBeenCalledWith({
+      message: `Token generated for client ${1}`,
+      code: 200000,
+      content: { result: "result" },
+    });
+  });
+
+  test("Token generator clients error 400001", async () => {
+    const req = {
+      body: {
+        grant_type: "client_credentials",
+        client_id: 1,
+        client_secret: "secret",
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knex = {};
+
+    const controllers = authControllers(knex, "secret");
+    controllers.handleClientToken = jest.fn().mockResolvedValue([null, 400001]);
+
+    await controllers.token(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({
+      code: 400001,
+      message: "Incorrect client secret",
+    });
+  });
+
+  test("Token generator clients error 400011", async () => {
+    const req = {
+      body: {
+        grant_type: "client_credentials",
+        client_id: 1,
+        client_secret: "secret",
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knex = {};
+
+    const controllers = authControllers(knex, "secret");
+    controllers.handleClientToken = jest.fn().mockResolvedValue([null, 400011]);
+
+    await controllers.token(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({
+      code: 400011,
+      message:
+        "Client is not able to generate tokens, use your long live token",
+    });
+  });
+
+  test("Token generator clients error 400004", async () => {
+    const req = {
+      body: {
+        grant_type: "client_credentials",
+        client_id: 1,
+        client_secret: "secret",
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knex = {};
+
+    const controllers = authControllers(knex, "secret");
+    controllers.handleClientToken = jest.fn().mockResolvedValue([null, 400004]);
+
+    await controllers.token(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({
+      code: 400004,
+      message: "Client not found",
+    });
+  });
+
+  test("Token generator clients error", async () => {
+    const req = {
+      body: {
+        grant_type: "client_credentials",
+        client_id: 1,
+        client_secret: "secret",
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knex = {};
+
+    const controllers = authControllers(knex, "secret");
+    controllers.handleClientToken = jest
+      .fn()
+      .mockResolvedValue([null, "Some Error"]);
+
+    await controllers.token(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+  });
+
+  test("Token generator users", async () => {
+    const req = {
+      body: {
+        grant_type: "password",
+        username: "username",
+        password: "secret",
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knex = {};
+
+    const controllers = authControllers(knex, "secret");
+
+    controllers.handleUserToken = jest
+      .fn()
+      .mockResolvedValue([{ result: "result" }, null]);
+
+    await controllers.token(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.json).toHaveBeenCalledWith({
+      message: `Token generated for user username`,
+      code: 200000,
+      content: { result: "result" },
+    });
+  });
+
+  test("Token generator users error 400001", async () => {
+    const req = {
+      body: {
+        grant_type: "password",
+        username: "username",
+        password: "secret",
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knex = {};
+
+    const controllers = authControllers(knex, "secret");
+
+    controllers.handleUserToken = jest.fn().mockResolvedValue([null, 400001]);
+
+    await controllers.token(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({
+      message: "Incorrect user password",
+      code: 400001,
+    });
+  });
+
+  test("Token generator users error 400004", async () => {
+    const req = {
+      body: {
+        grant_type: "password",
+        username: "username",
+        password: "secret",
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knex = {};
+
+    const controllers = authControllers(knex, "secret");
+
+    controllers.handleUserToken = jest.fn().mockResolvedValue([null, 400004]);
+
+    await controllers.token(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({
+      message: "User not found",
+      code: 400004,
+    });
+  });
+
+  test("Token generator users error", async () => {
+    const req = {
+      body: {
+        grant_type: "password",
+        username: "username",
+        password: "secret",
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knex = {};
+
+    const controllers = authControllers(knex, "secret");
+
+    controllers.handleUserToken = jest
+      .fn()
+      .mockResolvedValue([null, "Some error"]);
+
+    await controllers.token(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+  });
+
+  test("Token generator fails", async () => {
+    const req = {
+      body: {
+        grant_type: "password",
+        username: "username",
+        password: "secret",
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knex = {};
+
+    const controllers = authControllers(knex, "secret");
+
+    controllers.handleUserToken = jest
+      .fn()
+      .mockRejectedValue(new Error("Async error"));
+
+    await controllers.token(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+  });
+
+  test("Generate long live token", async () => {
+    const req = {
+      query: {},
+      params: { id: 1 },
+      body: {
+        identifier: "identifier",
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knex = {
+      table: jest.fn().mockReturnThis(),
+      update: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockResolvedValue("some"),
+    };
+
+    const controllers = authControllers(knex, "secret");
+    await controllers.generateLongLive(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(201);
+
+    expect(knex.table).toHaveBeenCalledWith("OAUTH2_Clients");
+    expect(knex.update).toHaveBeenCalled();
+    expect(knex.where).toHaveBeenCalledWith("OAUTH2_Clients.id", "=", 1);
+  });
+
+  test("Handle user token", async () => {
+    const username = "username";
+    const password = "password";
+    const bcryptSpy = jest.spyOn(bcrypt, "compare").mockReturnValue(true);
+    const jwtSpy = jest.spyOn(jwt, "sign").mockReturnValue("token");
+
+    const knex = {
+      table: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      join: jest.fn().mockReturnThis(),
+      update: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockResolvedValue([
+        {
+          id: 1,
+          username: "someUser",
+          roles: "someRole",
+          description: "some description",
+          name: "someName",
+        },
+      ]),
+    };
+
+    const controllers = authControllers(knex, "secret");
+    const result = await controllers.handleUserToken(username, password);
+
+    expect(bcryptSpy).toHaveBeenCalled();
+    expect(result).toStrictEqual([
+      {
+        jwt_token: "token",
+        name: "someName",
+        description: "some description",
+        user_id: 1,
+        username: "someUser",
+        roles: ["someRole"],
+      },
+      null,
+    ]);
+    bcryptSpy.mockRestore();
+    jwtSpy.mockRestore();
+  });
+
+  test("Remove long live token", async () => {
+    const req = {
+      query: {
+        remove_long_live: "true",
+      },
+      params: { id: 1 },
+      body: {
+        identifier: "identifier",
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knex = {
+      table: jest.fn().mockReturnThis(),
+      update: jest.fn().mockReturnThis(),
+      where: jest.fn().mockResolvedValue("some"),
+    };
+
+    const controllers = authControllers(knex, "secret");
+    await controllers.generateLongLive(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.json).toHaveBeenCalledWith({
+      message: `Token removed`,
+      code: 200001,
+    });
+
+    expect(knex.table).toHaveBeenCalledWith("OAUTH2_Clients");
+    expect(knex.update).toHaveBeenCalledWith({
+      access_token: null,
+    });
+    expect(knex.where).toHaveBeenCalledWith("OAUTH2_Clients.id", "=", 1);
+  });
+
+  test("Remove long live token fails", async () => {
+    const req = {
+      query: {
+        remove_long_live: "true",
+      },
+      body: {
+        identifier: "identifier",
+        client_id: 1,
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knex = {
+      table: jest.fn().mockReturnThis(),
+      update: jest.fn().mockReturnThis(),
+      where: jest.fn().mockRejectedValue(new Error("Async error")),
+    };
+
+    const controllers = authControllers(knex, "secret");
+    await controllers.generateLongLive(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+  });
+
+  test("Handle user token 400004", async () => {
+    const username = "username";
+    const password = "password";
+
+    const knex = {
+      table: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      join: jest.fn().mockReturnThis(),
+      update: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockResolvedValue([]),
+    };
+
+    const controllers = authControllers(knex, "secret");
+    const result = await controllers.handleUserToken(username, password);
+
+    expect(result).toStrictEqual([null, 400004]);
+  });
+
+  test("Handle user token 400001", async () => {
+    const username = "username";
+    const password = "password";
+    const bcryptSpy = jest.spyOn(bcrypt, "compare").mockImplementation(() => {
+      return false;
+    });
+    const knex = {
+      table: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      join: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockResolvedValue([1]),
+    };
+
+    const controllers = authControllers(knex, "secret");
+    const result = await controllers.handleUserToken(username, password);
+
+    expect(result).toStrictEqual([null, 400001]);
+    bcryptSpy.mockRestore();
+  });
+
+  test("Handle client token 400004", async () => {
+    const client_id = "username";
+    const client_secret = "password";
+
+    const knex = {
+      table: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      join: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockResolvedValue([]),
+    };
+
+    const controllers = authControllers(knex, "secret");
+    const result = await controllers.handleClientToken(
+      client_id,
+      client_secret
+    );
+
+    expect(result).toStrictEqual([null, 400004]);
+  });
+
+  test("Handle client token function", async () => {
+    const client_id = "username";
+    const client_secret = "password";
+
+    const knex = {
+      table: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      join: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest
+        .fn()
+        .mockResolvedValue([
+          { id: 1, roles: "role", client_secret: "x|.|password" },
+        ]),
+    };
+
+    const decipherSpy = jest
+      .spyOn(crypto, "createDecipheriv")
+      .mockImplementation(() => {
+        return {
+          update: jest.fn().mockReturnValue("password"),
+          final: jest.fn().mockReturnValue(""),
+        };
+      });
+
+    const controllers = authControllers(knex, "secret");
+    const result = await controllers.handleClientToken(
+      client_id,
+      client_secret
+    );
+
+    expect(decipherSpy).toHaveBeenCalled();
+    expect(result[1]).toBe(null);
+  });
+
+  test("Handle client token 400001", async () => {
+    const client_id = "username";
+    const client_secret = "password";
+    const bcryptSpy = jest.spyOn(bcrypt, "compare").mockImplementation(() => {
+      return false;
+    });
+    const bufferSpy = jest.spyOn(Buffer, "from");
+    const decipherSpy = jest
+      .spyOn(crypto, "createDecipheriv")
+      .mockImplementation(() => {
+        return {
+          update: jest.fn().mockReturnValue("u"),
+          final: jest.fn().mockReturnValue("U"),
+        };
+      });
+
+    const knex = {
+      table: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      join: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest
+        .fn()
+        .mockResolvedValue([{ id: 1, roles: "role", client_secret: "x|.|y" }]),
+    };
+
+    const controllers = authControllers(knex, "secret");
+    const result = await controllers.handleClientToken(
+      client_id,
+      client_secret
+    );
+
+    expect(result).toStrictEqual([null, 400001]);
+    expect(bufferSpy).toHaveBeenCalled();
+    expect(decipherSpy).toHaveBeenCalled();
+
+    bcryptSpy.mockRestore();
+    bufferSpy.mockRestore();
+    decipherSpy.mockRestore();
+  });
+
+  test("Get client secret", async () => {
+    const req = {
+      params: {
+        id: 1,
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knex = {
+      table: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      where: jest
+        .fn()
+        .mockResolvedValue([{ id: 1, roles: "role", client_secret: "x|.|y" }]),
+    };
+
+    const decipherSpy = jest
+      .spyOn(crypto, "createDecipheriv")
+      .mockImplementation(() => {
+        return {
+          update: jest.fn().mockReturnValue("u"),
+          final: jest.fn().mockReturnValue("U"),
+        };
+      });
+
+    const controllers = authControllers(knex, "secret");
+    await controllers.getClientSecret(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      code: 200000,
+      message: "Client secret",
+      content: {
+        clientSecret: "uU",
+      },
+    });
+
+    decipherSpy.mockRestore();
+  });
+
+  test("Revoke Token Works", async () => {
+    const req = {
+      body: {
+        revoke: false,
+      },
+      params: {
+        id: 1,
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knex = {
+      table: jest.fn().mockReturnThis(),
+      update: jest.fn().mockReturnThis(),
+      where: jest.fn(),
+    };
+
+    const controllers = authControllers(knex, "secret");
+    await controllers.revokeToken(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(201);
+
+    expect(knex.update).toHaveBeenCalledWith({ revoked: false });
   });
 });

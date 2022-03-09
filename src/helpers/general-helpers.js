@@ -32,48 +32,48 @@ const generalHelpers = () => {
     var bKeys = Object.keys(b).sort();
     return JSON.stringify(aKeys) === JSON.stringify(bKeys);
   };
-  helpersObj.validateBody = (validationOptions) => {
+  helpersObj.validateBody = (validationPermissions) => {
     const validateObj = {};
     validateObj.validate = (req, res, next) => {
-      if (!helpersObj.compareKeys(req.body, validationOptions))
+      if (!helpersObj.compareKeys(req.body, validationPermissions))
         return res.status(400).json({ code: 400000, message: "Invalid body" });
 
-      for (const option in validationOptions) {
-        switch (validationOptions[option].type) {
+      for (const permission in validationPermissions) {
+        switch (validationPermissions[permission].type) {
           case "array":
-            if (!Array.isArray(req.body[option])) {
+            if (!Array.isArray(req.body[permission])) {
               return res.status(400).json({
                 code: 400000,
-                message: `Invalid body; ${option} is not an array`,
+                message: `Invalid body; ${permission} is not an array`,
               });
             }
             break;
           case "string":
             if (
               !(
-                Object.prototype.toString.call(req.body[option]) ==
+                Object.prototype.toString.call(req.body[permission]) ==
                 "[object String]"
               )
             ) {
               return res.status(400).json({
                 code: 400000,
-                message: `Invalid body; ${option} is not an string`,
+                message: `Invalid body; ${permission} is not an string`,
               });
             }
             break;
           case "number":
-            if (isNaN(req.body[option])) {
+            if (isNaN(req.body[permission])) {
               return res.status(400).json({
                 code: 400000,
-                message: `Invalid body; ${option} is not a number`,
+                message: `Invalid body; ${permission} is not a number`,
               });
             }
             break;
           case "object":
-            if (!(typeof req.body[option] === "object")) {
+            if (!(typeof req.body[permission] === "object")) {
               return res.status(400).json({
                 code: 400000,
-                message: `Invalid body; ${option} is not an object`,
+                message: `Invalid body; ${permission} is not an object`,
               });
             }
             break;
@@ -98,19 +98,29 @@ const generalHelpers = () => {
       ) {
         const userObject = {
           id: usersBaseArray[index].id,
+          description: usersBaseArray[index].description,
           subjectId: usersBaseArray[index].subjectId,
           name: usersBaseArray[index].name,
           [userNameOrIdentifier]: usersBaseArray[index][userNameOrIdentifier],
           roles: [],
         };
+        if (subjectType === "client") {
+          userObject["client_id"] = usersBaseArray[index].client_id;
+          userObject["hasLongLiveToken"] = usersBaseArray[index].access_token
+            ? true
+            : false;
+          userObject["revoked"] =
+            usersBaseArray[index].revoked === 0 ? false : true;
+        }
         if (!usersBaseArray[index].roleDeleted) {
           userObject.roles.push({
             id: usersBaseArray[index].roleId,
             identifier: usersBaseArray[index].roleIdentifier,
-            parts: [
+            resources: [
               {
-                id: usersBaseArray[index].partId,
-                applicationPartName: usersBaseArray[index].applicationPart,
+                id: usersBaseArray[index].resourceId,
+                applicationResourceName:
+                  usersBaseArray[index].applicationResource,
                 allowed: [usersBaseArray[index].allowed],
               },
             ],
@@ -126,35 +136,39 @@ const generalHelpers = () => {
           newArray[lastIndex].roles.push({
             id: usersBaseArray[index].roleId,
             identifier: usersBaseArray[index].roleIdentifier,
-            parts: [
+            resources: [
               {
-                id: usersBaseArray[index].partId,
-                applicationPartName: usersBaseArray[index].applicationPart,
+                id: usersBaseArray[index].resourceId,
+                applicationResourceName:
+                  usersBaseArray[index].applicationResource,
                 allowed: [usersBaseArray[index].allowed],
               },
             ],
           });
         } else {
-          const indexOption = newArray[lastIndex].roles[
+          const indexPermission = newArray[lastIndex].roles[
             indexRole
-          ].parts.findIndex(
+          ].resources.findIndex(
             (o) =>
-              o.applicationPartName === usersBaseArray[index].applicationPart
+              o.applicationResourceName ===
+              usersBaseArray[index].applicationResource
           );
-          if (indexOption === -1) {
-            newArray[lastIndex].roles[indexRole].parts.push({
-              id: usersBaseArray[index].partId,
-              applicationPartName: usersBaseArray[index].applicationPart,
+          if (indexPermission === -1) {
+            newArray[lastIndex].roles[indexRole].resources.push({
+              id: usersBaseArray[index].resourceId,
+              applicationResourceName:
+                usersBaseArray[index].applicationResource,
               allowed: [usersBaseArray[index].allowed],
             });
           } else {
-            newArray[lastIndex].roles[indexRole].parts[
-              indexOption
+            newArray[lastIndex].roles[indexRole].resources[
+              indexPermission
             ].allowed.push(usersBaseArray[index].allowed);
           }
         }
       }
     }
+    console.log(newArray);
     return newArray;
   };
   helpersObj.parseRoleSearch = (rolesBaseArray) => {
@@ -168,14 +182,15 @@ const generalHelpers = () => {
         const roleObject = {
           id: rolesBaseArray[index].id,
           identifier: rolesBaseArray[index].identifier,
-          parts: [
+          resources: [
             {
-              id: rolesBaseArray[index].partId,
-              applicationPartName: rolesBaseArray[index].applicationPart,
+              id: rolesBaseArray[index].resourceId,
+              applicationResourceName:
+                rolesBaseArray[index].applicationResource,
               allowed: [
                 {
                   allowed: rolesBaseArray[index].allowed,
-                  id: rolesBaseArray[index].optionId,
+                  id: rolesBaseArray[index].permissionId,
                 },
               ],
             },
@@ -184,58 +199,62 @@ const generalHelpers = () => {
         newArray.push(roleObject);
       } else {
         const lastIndex = newArray.length - 1;
-        const indexOption = newArray[lastIndex].parts.findIndex(
-          (o) => o.applicationPartName === rolesBaseArray[index].applicationPart
+        const indexPermission = newArray[lastIndex].resources.findIndex(
+          (o) =>
+            o.applicationResourceName ===
+            rolesBaseArray[index].applicationResource
         );
-        if (indexOption === -1) {
-          newArray[lastIndex].parts.push({
-            id: rolesBaseArray[index].partId,
-            applicationPartName: rolesBaseArray[index].applicationPart,
+        if (indexPermission === -1) {
+          newArray[lastIndex].resources.push({
+            id: rolesBaseArray[index].resourceId,
+            applicationResourceName: rolesBaseArray[index].applicationResource,
             allowed: [
               {
                 allowed: rolesBaseArray[index].allowed,
-                id: rolesBaseArray[index].optionId,
+                id: rolesBaseArray[index].permissionId,
               },
             ],
           });
         } else {
-          newArray[lastIndex].parts[indexOption].allowed.push({
+          newArray[lastIndex].resources[indexPermission].allowed.push({
             allowed: rolesBaseArray[index].allowed,
-            id: rolesBaseArray[index].optionId,
+            id: rolesBaseArray[index].permissionId,
           });
         }
       }
     }
     return newArray;
   };
-  helpersObj.parsePartSearch = (partBaseArray) => {
+  helpersObj.parseResourceSearch = (resourceBaseArray) => {
     const newArray = [];
-    for (let index = 0; index < partBaseArray.length; index++) {
+    for (let index = 0; index < resourceBaseArray.length; index++) {
       if (
-        (partBaseArray[index - 1] &&
-          partBaseArray[index].applicationPartName !==
-            partBaseArray[index - 1].applicationPartName) ||
+        (resourceBaseArray[index - 1] &&
+          resourceBaseArray[index].applicationResourceName !==
+            resourceBaseArray[index - 1].applicationResourceName) ||
         index === 0
       ) {
         const roleObject = {
-          id: partBaseArray[index].partId,
-          applicationPartName: partBaseArray[index].applicationPartName,
+          id: resourceBaseArray[index].resourceId,
+          applicationResourceName:
+            resourceBaseArray[index].applicationResourceName,
           allowed: [
             {
-              allowed: partBaseArray[index].allowed,
-              id: partBaseArray[index].optionId,
+              allowed: resourceBaseArray[index].allowed,
+              id: resourceBaseArray[index].permissionId,
             },
           ],
         };
         newArray.push(roleObject);
       } else {
-        const indexOption = newArray.findIndex(
+        const indexPermissions = newArray.findIndex(
           (o) =>
-            o.applicationPartName === partBaseArray[index].applicationPartName
+            o.applicationResourceName ===
+            resourceBaseArray[index].applicationResourceName
         );
-        newArray[indexOption].allowed.push({
-          allowed: partBaseArray[index].allowed,
-          id: partBaseArray[index].optionId,
+        newArray[indexPermissions].allowed.push({
+          allowed: resourceBaseArray[index].allowed,
+          id: resourceBaseArray[index].permissionId,
         });
       }
     }

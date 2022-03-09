@@ -23,35 +23,35 @@ describe("All general helpers function accordingly", () => {
     expect(joinResult[0].similarField.length).toBe(4);
   });
 
-  test("Part search parsed works", () => {
-    const partBaseArray = [
+  test("Resource search parsed works", () => {
+    const resourceBaseArray = [
       {
-        partId: 1,
-        applicationPartName: "partName1",
+        resourceId: 1,
+        applicationResourceName: "resourceName1",
         allowed: "*",
-        optionId: 1,
+        permissionId: 1,
       },
       {
-        partId: 2,
-        applicationPartName: "partName2",
+        resourceId: 2,
+        applicationResourceName: "resourceName2",
         allowed: "*",
-        optionId: 2,
+        permissionId: 2,
       },
       {
-        partId: 3,
-        applicationPartName: "partName3",
+        resourceId: 3,
+        applicationResourceName: "resourceName3",
         allowed: "select",
-        optionId: 3,
+        permissionId: 3,
       },
       {
-        partId: 3,
-        applicationPartName: "partName3",
+        resourceId: 3,
+        applicationResourceName: "resourceName3",
         allowed: "create",
-        optionId: 4,
+        permissionId: 4,
       },
     ];
 
-    const parsedSearch = generalHelpers.parsePartSearch(partBaseArray);
+    const parsedSearch = generalHelpers.parseResourceSearch(resourceBaseArray);
 
     expect(parsedSearch[0].id).toBe(1);
 
@@ -59,7 +59,7 @@ describe("All general helpers function accordingly", () => {
 
     expect(parsedSearch[2].id).toBe(3);
 
-    expect(parsedSearch[2].applicationPartName).toBe("partName3");
+    expect(parsedSearch[2].applicationResourceName).toBe("resourceName3");
   });
 
   test("Role search parsed works", () => {
@@ -67,34 +67,34 @@ describe("All general helpers function accordingly", () => {
       {
         id: 1,
         identifier: "rol1",
-        partId: 1,
-        applicationPart: "partName1",
+        resourceId: 1,
+        applicationResource: "resourceName1",
         allowed: "*",
-        optionId: 1,
+        permissionId: 1,
       },
       {
         id: 1,
         identifier: "rol1",
-        partId: 1,
-        applicationPart: "partName1",
+        resourceId: 1,
+        applicationResource: "resourceName1",
         allowed: "select",
-        optionId: 2,
+        permissionId: 2,
       },
       {
         id: 2,
         identifier: "rol2",
-        partId: 1,
-        applicationPart: "partName2",
+        resourceId: 1,
+        applicationResource: "resourceName2",
         allowed: "*",
-        optionId: 3,
+        permissionId: 3,
       },
       {
         id: 2,
         identifier: "rol2",
-        partId: 1,
-        applicationPart: "partName3",
+        resourceId: 1,
+        applicationResource: "resourceName3",
         allowed: "create",
-        optionId: 4,
+        permissionId: 4,
       },
     ];
 
@@ -102,9 +102,9 @@ describe("All general helpers function accordingly", () => {
 
     expect(parsedSearch[1].id).toBe(2);
 
-    expect(parsedSearch[0].parts.length).toBe(1);
+    expect(parsedSearch[0].resources.length).toBe(1);
 
-    expect(parsedSearch[1].parts.length).toBe(2);
+    expect(parsedSearch[1].resources.length).toBe(2);
   });
 
   test("Subject search parsed works", () => {
@@ -113,24 +113,39 @@ describe("All general helpers function accordingly", () => {
         id: 1,
         subjectId: 1,
         name: "name1",
+        description: "desc",
         username: "user1",
         roleDeleted: false,
         roleId: 1,
         roleIdentifier: "rol1",
-        partId: 1,
-        applicationPart: "part1",
+        resourceId: 1,
+        applicationResource: "resource1",
         allowed: "*",
       },
       {
         id: 1,
         subjectId: 1,
         name: "name1",
+        description: "desc",
         username: "user1",
         roleDeleted: false,
         roleId: 1,
         roleIdentifier: "rol1",
-        partId: 1,
-        applicationPart: "part1",
+        resourceId: 1,
+        applicationResource: "resource1",
+        allowed: "select",
+      },
+      {
+        id: 1,
+        subjectId: 1,
+        name: "name1",
+        username: "user1",
+        description: "desc",
+        roleDeleted: false,
+        roleId: 2,
+        roleIdentifier: "rol2",
+        resourceId: 3,
+        applicationResource: "resource3",
         allowed: "select",
       },
       {
@@ -139,22 +154,11 @@ describe("All general helpers function accordingly", () => {
         name: "name1",
         username: "user1",
         roleDeleted: false,
+        description: "desc",
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 3,
-        applicationPart: "part3",
-        allowed: "select",
-      },
-      {
-        id: 1,
-        subjectId: 1,
-        name: "name1",
-        username: "user1",
-        roleDeleted: false,
-        roleId: 2,
-        roleIdentifier: "rol2",
-        partId: 4,
-        applicationPart: "part4",
+        resourceId: 4,
+        applicationResource: "resource4",
         allowed: "*",
       },
       {
@@ -162,11 +166,12 @@ describe("All general helpers function accordingly", () => {
         subjectId: 2,
         name: "name2",
         username: "user2",
+        description: "desc",
         roleDeleted: true,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 4,
-        applicationPart: "part4",
+        resourceId: 4,
+        applicationResource: "resource4",
         allowed: "*",
       },
     ];
@@ -174,74 +179,80 @@ describe("All general helpers function accordingly", () => {
     const clientBaseArray = [
       {
         id: 1,
+        description: "desc",
         subjectId: 1,
         name: "name1",
         identifier: "user1",
         roleDeleted: false,
         roleId: 1,
         roleIdentifier: "rol1",
-        partId: 1,
-        applicationPart: "part1",
+        resourceId: 1,
+        applicationResource: "resource1",
         allowed: "*",
       },
       {
         id: 1,
+        description: "desc",
         subjectId: 1,
         name: "name1",
         identifier: "user1",
         roleDeleted: false,
         roleId: 1,
         roleIdentifier: "rol1",
-        partId: 1,
-        applicationPart: "part1",
+        resourceId: 1,
+        applicationResource: "resource1",
         allowed: "select",
       },
       {
         id: 1,
+        description: "desc",
         subjectId: 1,
         name: "name1",
         identifier: "user1",
         roleDeleted: false,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 3,
-        applicationPart: "part3",
+        resourceId: 3,
+        applicationResource: "resource3",
         allowed: "select",
       },
       {
         id: 1,
+        description: "desc",
         subjectId: 1,
         name: "name1",
         identifier: "user1",
         roleDeleted: false,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 4,
-        applicationPart: "part4",
+        resourceId: 4,
+        applicationResource: "resource4",
         allowed: "*",
       },
       {
         id: 2,
         subjectId: 2,
+        description: "desc",
         name: "name2",
         identifier: "user2",
         roleDeleted: false,
         roleId: 2,
         roleIdentifier: "rol2",
-        partId: 4,
-        applicationPart: "part4",
+        resourceId: 4,
+        applicationResource: "resource4",
         allowed: "*",
       },
       {
         id: 2,
         subjectId: 2,
+        description: "desc",
         name: "name2",
         identifier: "user2",
         roleDeleted: true,
         roleId: 3,
         roleIdentifier: "rol3",
-        partId: 5,
-        applicationPart: "part5",
+        resourceId: 5,
+        applicationResource: "resource5",
         allowed: "*",
       },
     ];
@@ -255,19 +266,21 @@ describe("All general helpers function accordingly", () => {
 
     expect(parsedSearch[0].id).toBe(1);
 
-    expect(parsedSearch[0].roles[0].parts.length).toBe(1);
+    expect(parsedSearch[0].roles[0].resources.length).toBe(1);
 
-    expect(parsedSearch[0].roles[0].parts[0].allowed.length).toBe(2);
+    expect(parsedSearch[0].roles[0].resources[0].allowed.length).toBe(2);
 
     expect(parsedSearch[2]).toBe(undefined);
 
     expect(parsedSearch[0].username).toBe("user1");
 
+    expect(parsedSearch[0].description).toBe("desc");
+
     expect(parsedSearchClient[0].id).toBe(1);
 
-    expect(parsedSearchClient[0].roles[0].parts.length).toBe(1);
+    expect(parsedSearchClient[0].roles[0].resources.length).toBe(1);
 
-    expect(parsedSearchClient[0].roles[0].parts[0].allowed.length).toBe(2);
+    expect(parsedSearchClient[0].roles[0].resources[0].allowed.length).toBe(2);
 
     expect(parsedSearchClient[2]).toBe(undefined);
 
@@ -292,7 +305,7 @@ describe("All general helpers function accordingly", () => {
   test("Validate body", () => {
     const mockReq = () => {
       const request = {};
-      request.body = { option: "some" };
+      request.body = { permission: "some" };
       return request;
     };
 
@@ -310,82 +323,82 @@ describe("All general helpers function accordingly", () => {
 
     const mockNext = jest.fn();
 
-    const optionOne = { option: { type: "string" } };
+    const permissionOne = { permission: { type: "string" } };
 
-    generalHelpers.validateBody(optionOne).validate(req, res, mockNext);
+    generalHelpers.validateBody(permissionOne).validate(req, res, mockNext);
 
     expect(mockNext).toHaveBeenCalledTimes(1);
 
-    req.body.option = [];
+    req.body.permission = [];
 
-    generalHelpers.validateBody(optionOne).validate(req, res, mockNext);
+    generalHelpers.validateBody(permissionOne).validate(req, res, mockNext);
 
     expect(mockNext).toHaveBeenCalledTimes(1);
     expect(res.json).toHaveBeenCalledWith({
       code: 400000,
-      message: `Invalid body; option is not an string`,
+      message: `Invalid body; permission is not an string`,
     });
 
-    const optionArray = { option: { type: "array" } };
+    const permissionArray = { permission: { type: "array" } };
 
-    generalHelpers.validateBody(optionArray).validate(req, res, mockNext);
+    generalHelpers.validateBody(permissionArray).validate(req, res, mockNext);
 
     expect(mockNext).toHaveBeenCalledTimes(2);
 
-    req.body.option = { key: 2 };
+    req.body.permission = { key: 2 };
 
-    generalHelpers.validateBody(optionArray).validate(req, res, mockNext);
+    generalHelpers.validateBody(permissionArray).validate(req, res, mockNext);
 
     expect(mockNext).toHaveBeenCalledTimes(2);
 
     expect(res.json).toHaveBeenCalledWith({
       code: 400000,
-      message: `Invalid body; option is not an array`,
+      message: `Invalid body; permission is not an array`,
     });
 
-    const optionObject = { option: { type: "object" } };
+    const permissionObject = { permission: { type: "object" } };
 
-    generalHelpers.validateBody(optionObject).validate(req, res, mockNext);
+    generalHelpers.validateBody(permissionObject).validate(req, res, mockNext);
 
     expect(mockNext).toHaveBeenCalledTimes(3);
 
-    req.body.option = 2;
+    req.body.permission = 2;
 
-    generalHelpers.validateBody(optionObject).validate(req, res, mockNext);
+    generalHelpers.validateBody(permissionObject).validate(req, res, mockNext);
 
     expect(mockNext).toHaveBeenCalledTimes(3);
 
     expect(res.json).toHaveBeenCalledWith({
       code: 400000,
-      message: `Invalid body; option is not an object`,
+      message: `Invalid body; permission is not an object`,
     });
 
-    const optionNumber = { option: { type: "number" } };
+    const permissionNumber = { permission: { type: "number" } };
 
-    generalHelpers.validateBody(optionNumber).validate(req, res, mockNext);
+    generalHelpers.validateBody(permissionNumber).validate(req, res, mockNext);
 
     expect(mockNext).toHaveBeenCalledTimes(4);
 
-    req.body.option = "some";
+    req.body.permission = "some";
 
-    generalHelpers.validateBody(optionNumber).validate(req, res, mockNext);
+    generalHelpers.validateBody(permissionNumber).validate(req, res, mockNext);
 
     expect(mockNext).toHaveBeenCalledTimes(4);
 
     expect(res.json).toHaveBeenCalledWith({
       code: 400000,
-      message: `Invalid body; option is not a number`,
+      message: `Invalid body; permission is not a number`,
     });
 
-    const optionDefault = { option: { type: "default" } };
+    const permissionDefault = { permission: { type: "default" } };
 
-    generalHelpers.validateBody(optionDefault).validate(req, res, mockNext);
+    generalHelpers.validateBody(permissionDefault).validate(req, res, mockNext);
 
     expect(mockNext).toHaveBeenCalledTimes(5);
 
-    const optionNone = { none: { type: "default" } };
+    const permissionNone = { none: { type: "default" } };
 
-    generalHelpers.validateBody(optionNone).validate(req, res, mockNext);
+    generalHelpers.validateBody(permissionNone).validate(req, res, mockNext);
 
     expect(res.json).toHaveBeenCalledWith({
       code: 400000,

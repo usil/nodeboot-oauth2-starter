@@ -1,8 +1,16 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const generalHelpers = require("../general-helpers.js");
+const randomstring = require("randomstring");
+const crypto = require("crypto");
 
-const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
+const authControllers = (
+  knex,
+  jwtSecret,
+  expiresIn = "24h",
+  cryptoSecret = "key",
+  clientIdSuffix = "::client.app"
+) => {
   const controller = {};
 
   controller.createUser = async (req, res) => {
@@ -12,11 +20,15 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
 
       req.body.encryptedPassword = encryptedPassword;
 
+      let userId = -1;
+
       await knex.transaction(async (trx) => {
-        await controller.createUserTransaction(trx, req.body);
+        userId = await controller.createUserTransaction(trx, req.body);
       });
 
-      return res.status(201).json({ code: 200000, message: "User added" });
+      return res
+        .status(201)
+        .json({ code: 200001, message: "User added", content: { userId } });
     } catch (error) {
       console.log(error);
       return res.status(500).json({
@@ -28,13 +40,14 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
 
   controller.createUserTransaction = async (trx, reqBody) => {
     try {
-      const { username, name, roles, encryptedPassword } = reqBody;
+      const { username, name, roles, encryptedPassword, description } = reqBody;
 
       const firstResult = await trx.table("OAUTH2_Subjects").insert({
         name,
+        description,
       });
 
-      await trx.table("OAUTH2_Users").insert({
+      const userId = await trx.table("OAUTH2_Users").insert({
         username: username.toLowerCase(),
         password: encryptedPassword,
         subject_id: firstResult[0],
@@ -45,61 +58,102 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
       });
 
       await trx.table("OAUTH2_SubjectRole").insert(subjectRolesToInsert);
+
+      return userId[0];
     } catch (error) {
       throw new Error(error.message);
     }
   };
 
-  controller.createClientTransaction = async (trx, reqBody) => {
+  controller.createClientTransaction = async (
+    trx,
+    reqBody,
+    longLive = false
+  ) => {
     try {
-      const { identifier, name, roles, encryptedAccessToken } = reqBody;
+      const { identifier, name, roles, description } = reqBody;
+
+      const clientSecret = randomstring.generate();
+      let clientStringId = randomstring.generate(20);
+
+      clientStringId += clientIdSuffix;
+
+      const algorithm = "aes-256-ctr";
+      const initVector = crypto.randomBytes(16);
+      const key = crypto.scryptSync(cryptoSecret, "salt", 32);
+      const cipher = crypto.createCipheriv(algorithm, key, initVector);
+      let encryptedData = cipher.update(clientSecret, "utf-8", "hex");
+      encryptedData += cipher.final("hex");
 
       const firstResult = await trx.table("OAUTH2_Subjects").insert({
         name,
+        description,
       });
 
-      await trx.table("OAUTH2_Clients").insert({
+      const hexedInitVector = initVector.toString("hex");
+
+      const result = await trx.table("OAUTH2_Clients").insert({
         identifier: identifier.toLowerCase(),
-        access_token: encryptedAccessToken,
+        client_id: clientStringId,
+        client_secret: hexedInitVector + "|.|" + encryptedData,
         subject_id: firstResult[0],
       });
+
+      let access_token = "";
+
+      if (longLive === true || longLive === "true") {
+        access_token = jwt.sign(
+          {
+            data: {
+              id: result[0],
+              subjectType: "client",
+              identifier: identifier.toLowerCase(),
+            },
+          },
+          jwtSecret
+        );
+
+        const encryptedAccessToken = await bcrypt.hash(access_token, 10);
+
+        await trx
+          .table("OAUTH2_Clients")
+          .update({
+            access_token: encryptedAccessToken,
+          })
+          .where("OAUTH2_Clients.id", "=", result[0]);
+      }
 
       const subjectRolesToInsert = roles.map((r) => {
         return { subject_id: firstResult[0], roles_id: r.id };
       });
 
       await trx.table("OAUTH2_SubjectRole").insert(subjectRolesToInsert);
+
+      return { clientSecret, clientId: clientStringId, access_token };
     } catch (error) {
+      console.log(error);
       throw new Error(error.message);
     }
   };
 
   controller.createClient = async (req, res) => {
     try {
-      const { identifier } = req.body;
+      let response;
 
-      const access_token = jwt.sign(
-        {
-          data: {
-            subjectType: "client",
-            identifier: identifier,
-          },
-        },
-        jwtSecret
-      );
-
-      const encryptedAccessToken = await bcrypt.hash(access_token, 10);
-
-      req.body.encryptedAccessToken = encryptedAccessToken;
+      const { longLive } = req.query;
 
       await knex.transaction(async (trx) => {
-        await controller.createClientTransaction(trx, req.body);
+        response = await controller.createClientTransaction(
+          trx,
+          req.body,
+          longLive
+        );
       });
 
       return res.status(201).json({
-        code: 200000,
+        code: 200001,
         message: "Client added",
-        content: { access_token },
+        content: response,
       });
     } catch (error) {
       console.log(error);
@@ -112,10 +166,14 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
 
   controller.createRole = async (req, res) => {
     try {
+      let roleId;
+
       await knex.transaction(async (trx) => {
-        await controller.createRoleTransaction(trx, req.body);
+        roleId = await controller.createRoleTransaction(trx, req.body);
       });
-      return res.status(201).json({ code: 200000, message: "Role added" });
+      return res
+        .status(201)
+        .json({ code: 200001, message: "Role added", content: { roleId } });
     } catch (error) {
       console.log(error);
       return res.status(500).json({
@@ -131,16 +189,18 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
       const insertResult = await trx.table("OAUTH2_Roles").insert({
         identifier: identifier.toLowerCase(),
       });
-      const insertRoleOptions = [];
+      const insertRolePermissions = [];
       for (const allowed in allowedObject) {
         for (const a of allowedObject[allowed]) {
-          insertRoleOptions.push({
+          insertRolePermissions.push({
             roles_id: insertResult[0],
-            options_id: a.id,
+            permissions_id: a.id,
           });
         }
       }
-      await trx.table("OAUTH2_RoleOption").insert(insertRoleOptions);
+      await trx.table("OAUTH2_RolePermission").insert(insertRolePermissions);
+
+      return insertResult[0];
     } catch (error) {
       throw new Error(error.message);
     }
@@ -149,10 +209,14 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
   controller.createApplication = async (req, res) => {
     try {
       const { identifier } = req.body;
-      await knex.table("OAUTH2_Applications").insert({ identifier });
-      return res
-        .status(201)
-        .json({ code: 200000, message: "Application added" });
+      const applicationId = await knex
+        .table("OAUTH2_Applications")
+        .insert({ identifier });
+      return res.status(201).json({
+        code: 200001,
+        message: "Application added",
+        content: { applicationId: applicationId[0] },
+      });
     } catch (error) {
       console.log(error);
       return res.status(500).json({
@@ -162,16 +226,20 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
     }
   };
 
-  controller.createApplicationPart = async (req, res) => {
+  controller.createApplicationResource = async (req, res) => {
     try {
-      const { partIdentifier, applications_id } = req.body;
-      await knex.table("OAUTH2_ApplicationPart").insert({
-        partIdentifier,
-        applications_id,
+      const { resourceIdentifier, applications_id } = req.body;
+      const applicationResourceId = await knex
+        .table("OAUTH2_ApplicationResource")
+        .insert({
+          resourceIdentifier: resourceIdentifier,
+          applications_id,
+        });
+      return res.status(201).json({
+        code: 200001,
+        message: "Application resource added",
+        content: applicationResourceId[0],
       });
-      return res
-        .status(201)
-        .json({ code: 200000, message: "Application part added" });
     } catch (error) {
       console.log(error);
       return res.status(500).json({
@@ -181,14 +249,18 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
     }
   };
 
-  controller.createOption = async (req, res) => {
+  controller.createPermission = async (req, res) => {
     try {
-      const { allowed, applicationPart_id } = req.body;
-      await knex.table("OAUTH2_Options").insert({
+      const { allowed, applicationResource_id } = req.body;
+      const permissionId = await knex.table("OAUTH2_Permissions").insert({
         allowed,
-        applicationPart_id,
+        applicationResource_id,
       });
-      return res.status(201).json({ code: 200000, message: "Option added" });
+      return res.status(201).json({
+        code: 200001,
+        message: "Permission added",
+        content: { permissionId: permissionId[0] },
+      });
     } catch (error) {
       console.log(error);
       return res.status(500).json({
@@ -240,10 +312,11 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
           "OAUTH2_Users.id",
           "OAUTH2_Users.username",
           "OAUTH2_Subjects.id as subjectId",
+          "OAUTH2_Subjects.description",
           "OAUTH2_Subjects.name",
-          "OAUTH2_ApplicationPart.partIdentifier as applicationPart",
-          "OAUTH2_ApplicationPart.id as partId",
-          "OAUTH2_Options.allowed",
+          "OAUTH2_ApplicationResource.resourceIdentifier as applicationResource",
+          "OAUTH2_ApplicationResource.id as resourceId",
+          "OAUTH2_Permissions.allowed",
           "OAUTH2_Roles.id as roleId",
           "OAUTH2_Roles.identifier as roleIdentifier"
         )
@@ -259,19 +332,19 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
         )
         .join("OAUTH2_Roles", `OAUTH2_Roles.id`, "OAUTH2_SubjectRole.roles_id")
         .join(
-          "OAUTH2_RoleOption",
-          `OAUTH2_RoleOption.roles_id`,
+          "OAUTH2_RolePermission",
+          `OAUTH2_RolePermission.roles_id`,
           "OAUTH2_SubjectRole.roles_id"
         )
         .join(
-          "OAUTH2_Options",
-          `OAUTH2_Options.id`,
-          "OAUTH2_RoleOption.options_id"
+          "OAUTH2_Permissions",
+          `OAUTH2_Permissions.id`,
+          "OAUTH2_RolePermission.permissions_id"
         )
         .join(
-          "OAUTH2_ApplicationPart",
-          `OAUTH2_ApplicationPart.id`,
-          "OAUTH2_Options.applicationPart_id"
+          "OAUTH2_ApplicationResource",
+          `OAUTH2_ApplicationResource.id`,
+          "OAUTH2_Permissions.applicationResource_id"
         )
         .where("OAUTH2_Users.deleted", false);
 
@@ -312,11 +385,12 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
         .select(
           "OAUTH2_Users.id",
           "OAUTH2_Users.username",
+          "OAUTH2_Subjects.description",
           "OAUTH2_Subjects.id as subjectId",
           "OAUTH2_Subjects.name",
-          "OAUTH2_ApplicationPart.partIdentifier as applicationPart",
-          "OAUTH2_ApplicationPart.id as partId",
-          "OAUTH2_Options.allowed",
+          "OAUTH2_ApplicationResource.resourceIdentifier as applicationResource",
+          "OAUTH2_ApplicationResource.id as resourceId",
+          "OAUTH2_Permissions.allowed",
           "OAUTH2_Roles.id as roleId",
           "OAUTH2_Roles.identifier as roleIdentifier"
         )
@@ -332,19 +406,19 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
         )
         .join("OAUTH2_Roles", `OAUTH2_Roles.id`, "OAUTH2_SubjectRole.roles_id")
         .join(
-          "OAUTH2_RoleOption",
-          `OAUTH2_RoleOption.roles_id`,
+          "OAUTH2_RolePermission",
+          `OAUTH2_RolePermission.roles_id`,
           "OAUTH2_SubjectRole.roles_id"
         )
         .join(
-          "OAUTH2_Options",
-          `OAUTH2_Options.id`,
-          "OAUTH2_RoleOption.options_id"
+          "OAUTH2_Permissions",
+          `OAUTH2_Permissions.id`,
+          "OAUTH2_RolePermission.permissions_id"
         )
         .join(
-          "OAUTH2_ApplicationPart",
-          `OAUTH2_ApplicationPart.id`,
-          "OAUTH2_Options.applicationPart_id"
+          "OAUTH2_ApplicationResource",
+          `OAUTH2_ApplicationResource.id`,
+          "OAUTH2_Permissions.applicationResource_id"
         )
         .where("OAUTH2_Users.id", req.params.id);
 
@@ -385,11 +459,12 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
         .select(
           "OAUTH2_Users.id",
           "OAUTH2_Users.username",
+          "OAUTH2_Subjects.description",
           "OAUTH2_Subjects.id as subjectId",
           "OAUTH2_Subjects.name",
-          "OAUTH2_ApplicationPart.partIdentifier as applicationPart",
-          "OAUTH2_ApplicationPart.id as partId",
-          "OAUTH2_Options.allowed",
+          "OAUTH2_ApplicationResource.resourceIdentifier as applicationResource",
+          "OAUTH2_ApplicationResource.id as resourceId",
+          "OAUTH2_Permissions.allowed",
           "OAUTH2_Roles.id as roleId",
           "OAUTH2_Roles.deleted as roleDeleted",
           "OAUTH2_Roles.identifier as roleIdentifier"
@@ -406,19 +481,19 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
         )
         .join("OAUTH2_Roles", `OAUTH2_Roles.id`, "OAUTH2_SubjectRole.roles_id")
         .join(
-          "OAUTH2_RoleOption",
-          `OAUTH2_RoleOption.roles_id`,
+          "OAUTH2_RolePermission",
+          `OAUTH2_RolePermission.roles_id`,
           "OAUTH2_SubjectRole.roles_id"
         )
         .join(
-          "OAUTH2_Options",
-          `OAUTH2_Options.id`,
-          "OAUTH2_RoleOption.options_id"
+          "OAUTH2_Permissions",
+          `OAUTH2_Permissions.id`,
+          "OAUTH2_RolePermission.permissions_id"
         )
         .join(
-          "OAUTH2_ApplicationPart",
-          `OAUTH2_ApplicationPart.id`,
-          "OAUTH2_Options.applicationPart_id"
+          "OAUTH2_ApplicationResource",
+          `OAUTH2_ApplicationResource.id`,
+          "OAUTH2_Permissions.applicationResource_id"
         )
         .where("OAUTH2_Users.username", res.locals.user.username);
 
@@ -481,12 +556,16 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
       })
         .select(
           "OAUTH2_Clients.id",
+          "OAUTH2_Clients.client_id",
+          "OAUTH2_Clients.revoked",
+          "OAUTH2_Clients.access_token",
           "OAUTH2_Clients.identifier",
+          "OAUTH2_Subjects.description",
           "OAUTH2_Subjects.id as subjectId",
           "OAUTH2_Subjects.name",
-          "OAUTH2_ApplicationPart.partIdentifier as applicationPart",
-          "OAUTH2_ApplicationPart.id as partId",
-          "OAUTH2_Options.allowed",
+          "OAUTH2_ApplicationResource.resourceIdentifier as applicationResource",
+          "OAUTH2_ApplicationResource.id as resourceId",
+          "OAUTH2_Permissions.allowed",
           "OAUTH2_Roles.id as roleId",
           "OAUTH2_Roles.deleted as roleDeleted",
           "OAUTH2_Roles.identifier as roleIdentifier"
@@ -503,19 +582,19 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
         )
         .join("OAUTH2_Roles", `OAUTH2_Roles.id`, "OAUTH2_SubjectRole.roles_id")
         .join(
-          "OAUTH2_RoleOption",
-          `OAUTH2_RoleOption.roles_id`,
+          "OAUTH2_RolePermission",
+          `OAUTH2_RolePermission.roles_id`,
           "OAUTH2_SubjectRole.roles_id"
         )
         .join(
-          "OAUTH2_Options",
-          `OAUTH2_Options.id`,
-          "OAUTH2_RoleOption.options_id"
+          "OAUTH2_Permissions",
+          `OAUTH2_Permissions.id`,
+          "OAUTH2_RolePermission.permissions_id"
         )
         .join(
-          "OAUTH2_ApplicationPart",
-          `OAUTH2_ApplicationPart.id`,
-          "OAUTH2_Options.applicationPart_id"
+          "OAUTH2_ApplicationResource",
+          `OAUTH2_ApplicationResource.id`,
+          "OAUTH2_Permissions.applicationResource_id"
         )
         .where("OAUTH2_Clients.deleted", false);
 
@@ -626,7 +705,7 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
         await controller.deleteUserTransaction(trx, subjectId);
       });
 
-      return res.status(201).json({ code: 200000, message: "User deleted" });
+      return res.status(201).json({ code: 200001, message: "User deleted" });
     } catch (error) {
       return res.status(500).json({
         code: 500000,
@@ -677,7 +756,7 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
         .where({ id: roleId })
         .update("deleted", true);
 
-      return res.status(201).json({ code: 200001, message: "Client deleted" });
+      return res.status(201).json({ code: 200001, message: "Role deleted" });
     } catch (error) {
       return res.status(500).json({
         code: 500000,
@@ -703,7 +782,7 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
         .where({ id: subjectId })
         .update({ name });
 
-      return res.status(201).json({ code: 200000, message: "User updated" });
+      return res.status(201).json({ code: 200001, message: "User updated" });
     } catch (error) {
       return res.status(500).json({
         code: 500000,
@@ -824,25 +903,25 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
         .select(
           "OAUTH2_Roles.id",
           "OAUTH2_Roles.identifier",
-          "OAUTH2_ApplicationPart.id as partId",
-          "OAUTH2_ApplicationPart.partIdentifier as applicationPart",
-          "OAUTH2_Options.allowed",
-          "OAUTH2_Options.id as optionId"
+          "OAUTH2_ApplicationResource.id as resourceId",
+          "OAUTH2_ApplicationResource.resourceIdentifier as applicationResource",
+          "OAUTH2_Permissions.allowed",
+          "OAUTH2_Permissions.id as permissionId"
         )
         .join(
-          "OAUTH2_RoleOption",
-          `OAUTH2_RoleOption.roles_id`,
+          "OAUTH2_RolePermission",
+          `OAUTH2_RolePermission.roles_id`,
           "OAUTH2_Roles.id"
         )
         .join(
-          "OAUTH2_Options",
-          `OAUTH2_Options.id`,
-          "OAUTH2_RoleOption.options_id"
+          "OAUTH2_Permissions",
+          `OAUTH2_Permissions.id`,
+          "OAUTH2_RolePermission.permissions_id"
         )
         .join(
-          "OAUTH2_ApplicationPart",
-          `OAUTH2_ApplicationPart.id`,
-          "OAUTH2_Options.applicationPart_id"
+          "OAUTH2_ApplicationResource",
+          `OAUTH2_ApplicationResource.id`,
+          "OAUTH2_Permissions.applicationResource_id"
         )
         .where("OAUTH2_Roles.deleted", false);
 
@@ -869,35 +948,36 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
     }
   };
 
-  controller.getParts = async (req, res) => {
+  controller.getResources = async (req, res) => {
     try {
       if (req.query["basic"] && req.query["basic"] == "true") {
-        const partsSelectBasicQuery = knex
-          .table("OAUTH2_ApplicationPart")
+        const resourceSelectBasicQuery = knex
+          .table("OAUTH2_ApplicationResource")
           .select(
-            "OAUTH2_ApplicationPart.partIdentifier as applicationPartName",
-            "OAUTH2_ApplicationPart.id as partId",
-            "OAUTH2_Options.allowed",
-            "OAUTH2_Options.id as optionId"
+            "OAUTH2_ApplicationResource.resourceIdentifier as applicationResourceName",
+            "OAUTH2_ApplicationResource.id as resourceId",
+            "OAUTH2_Permissions.allowed",
+            "OAUTH2_Permissions.id as permissionId"
           )
           .join(
-            "OAUTH2_Options",
-            `OAUTH2_Options.applicationPart_id`,
-            "OAUTH2_ApplicationPart.id"
+            "OAUTH2_Permissions",
+            `OAUTH2_Permissions.applicationResource_id`,
+            "OAUTH2_ApplicationResource.id"
           )
-          .where("OAUTH2_ApplicationPart.deleted", false)
-          .where("OAUTH2_Options.deleted", false);
+          .where("OAUTH2_ApplicationResource.deleted", false)
+          .where("OAUTH2_Permissions.deleted", false);
 
-        const partsBasicResult = await partsSelectBasicQuery;
+        const resourcesBasicResult = await resourceSelectBasicQuery;
 
         const helpers = generalHelpers();
 
-        const parsedParts = helpers.parsePartSearch(partsBasicResult);
+        const parsedResources =
+          helpers.parseResourceSearch(resourcesBasicResult);
 
         return res.status(200).json({
           code: 200000,
           message: "Select completed",
-          content: parsedParts,
+          content: parsedResources,
         });
       }
 
@@ -925,46 +1005,46 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
 
       const offset = itemsPerPage * pageIndex;
 
-      const partsTotalCount = (
-        await knex("OAUTH2_ApplicationPart")
-          .where("OAUTH2_ApplicationPart.deleted", false)
+      const resourcesTotalCount = (
+        await knex("OAUTH2_ApplicationResource")
+          .where("OAUTH2_ApplicationResource.deleted", false)
           .count()
       )[0]["count(*)"];
 
-      const totalPages = Math.ceil(partsTotalCount / itemsPerPage);
+      const totalPages = Math.ceil(resourcesTotalCount / itemsPerPage);
 
-      const partsFullResult = await knex({
-        OAUTH2_ApplicationPart: knex("OAUTH2_ApplicationPart")
+      const resourcesFullResult = await knex({
+        OAUTH2_ApplicationResource: knex("OAUTH2_ApplicationResource")
           .limit(itemsPerPage)
           .offset(offset)
-          .orderBy("OAUTH2_ApplicationPart.id", order),
+          .orderBy("OAUTH2_ApplicationResource.id", order),
       })
         .select(
-          "OAUTH2_ApplicationPart.partIdentifier as applicationPartName",
-          "OAUTH2_ApplicationPart.id as partId",
-          "OAUTH2_Options.allowed",
-          "OAUTH2_Options.id as optionId"
+          "OAUTH2_ApplicationResource.resourceIdentifier as applicationResourceName",
+          "OAUTH2_ApplicationResource.id as resourceId",
+          "OAUTH2_Permissions.allowed",
+          "OAUTH2_Permissions.id as permissionId"
         )
         .join(
-          "OAUTH2_Options",
-          `OAUTH2_Options.applicationPart_id`,
-          "OAUTH2_ApplicationPart.id"
+          "OAUTH2_Permissions",
+          `OAUTH2_Permissions.applicationResource_id`,
+          "OAUTH2_ApplicationResource.id"
         )
-        .where("OAUTH2_ApplicationPart.deleted", false)
-        .where("OAUTH2_Options.deleted", false)
-        .orderBy("OAUTH2_Options.id", "asc");
+        .where("OAUTH2_ApplicationResource.deleted", false)
+        .where("OAUTH2_Permissions.deleted", false)
+        .orderBy("OAUTH2_Permissions.id", "asc");
 
       const helpers = generalHelpers();
-      const parsedParts = helpers.parsePartSearch(partsFullResult);
+      const parsedResources = helpers.parseResourceSearch(resourcesFullResult);
 
       return res.status(200).json({
         code: 200000,
         message: "Select completed",
         content: {
-          items: parsedParts,
+          items: parsedResources,
           pageIndex,
           itemsPerPage,
-          totalItems: partsTotalCount,
+          totalItems: resourcesTotalCount,
           totalPages,
         },
       });
@@ -977,19 +1057,23 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
     }
   };
 
-  controller.updateRoleOptionsTransaction = async (trx, roleId, reqBody) => {
+  controller.updateRolePermissionsTransaction = async (
+    trx,
+    roleId,
+    reqBody
+  ) => {
     try {
       const { newAllowedObject, originalAllowedObject } = reqBody;
 
       const newAllowedArray = [];
       const originalAllowedArray = [];
-      const roleOptionToInsert = [];
+      const rolePermissionToInsert = [];
 
       for (const allowed in newAllowedObject) {
         for (const a of newAllowedObject[allowed]) {
           newAllowedArray.push({
             roles_id: roleId,
-            options_id: a.id,
+            permissions_id: a.id,
           });
         }
       }
@@ -998,54 +1082,58 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
         for (const a of originalAllowedObject[allowed]) {
           originalAllowedArray.push({
             roles_id: roleId,
-            options_id: a.id,
+            permissions_id: a.id,
           });
         }
       }
 
       for (const allowed of newAllowedArray) {
-        const indexOfRoleOption = originalAllowedArray.findIndex(
-          (orp) => orp.options_id === allowed.options_id
+        const indexOfRolePermission = originalAllowedArray.findIndex(
+          (orp) => orp.permissions_id === allowed.permissions_id
         );
-        if (indexOfRoleOption === -1) {
-          roleOptionToInsert.push(allowed);
+        if (indexOfRolePermission === -1) {
+          rolePermissionToInsert.push(allowed);
         }
       }
 
       for (const allowed of originalAllowedArray) {
-        const indexOfRoleOption = newAllowedArray.findIndex(
-          (orp) => orp.options_id === allowed.options_id
+        const indexOfRolePermission = newAllowedArray.findIndex(
+          (orp) => orp.permissions_id === allowed.permissions_id
         );
-        if (indexOfRoleOption === -1) {
+        if (indexOfRolePermission === -1) {
           await trx
-            .table("OAUTH2_RoleOption")
+            .table("OAUTH2_RolePermission")
             .where({
               roles_id: allowed.roles_id,
-              options_id: allowed.options_id,
+              permissions_id: allowed.permissions_id,
             })
             .del();
         }
       }
 
-      if (roleOptionToInsert.length !== 0) {
-        await trx.table("OAUTH2_RoleOption").insert(roleOptionToInsert);
+      if (rolePermissionToInsert.length !== 0) {
+        await trx.table("OAUTH2_RolePermission").insert(rolePermissionToInsert);
       }
     } catch (error) {
       throw new Error(error.message);
     }
   };
 
-  controller.updateRoleOptions = async (req, res) => {
+  controller.updateRolePermissions = async (req, res) => {
     try {
       const roleId = req.params.id;
 
       await knex.transaction(async (trx) => {
-        await controller.updateRoleOptionsTransaction(trx, roleId, req.body);
+        await controller.updateRolePermissionsTransaction(
+          trx,
+          roleId,
+          req.body
+        );
       });
 
       return res.status(201).json({
-        code: 200000,
-        message: "Role options updated",
+        code: 200001,
+        message: "Role permissions updated",
       });
     } catch (error) {
       console.log(error);
@@ -1056,55 +1144,66 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
     }
   };
 
-  controller.updatePartOptionsTransaction = async (trx, partId, reqBody) => {
+  controller.updateResourcePermissionsTransaction = async (
+    trx,
+    resourceId,
+    reqBody
+  ) => {
     try {
-      const { newPartOptions, originalPartOptions } = reqBody;
+      const { newResourcePermissions, originalResourcePermissions } = reqBody;
 
-      const optionsToInsert = [];
+      const permissionsToInsert = [];
 
-      for (const option of newPartOptions) {
-        const indexOnOriginal = originalPartOptions.findIndex(
-          (opt) => opt.allowed.toLowerCase() === option.allowed
+      for (const permissions of newResourcePermissions) {
+        const indexOnOriginal = originalResourcePermissions.findIndex(
+          (opt) => opt.allowed.toLowerCase() === permissions.allowed
         );
         if (indexOnOriginal === -1) {
-          optionsToInsert.push({
-            allowed: option.allowed.toLowerCase(),
-            applicationPart_id: partId,
+          permissionsToInsert.push({
+            allowed: permissions.allowed.toLowerCase(),
+            applicationResource_id: resourceId,
           });
         }
       }
 
-      for (const option of originalPartOptions) {
-        const indexOnNew = newPartOptions.findIndex(
-          (opt) => opt.allowed.toLowerCase() === option.allowed
+      for (const permission of originalResourcePermissions) {
+        const indexOnNew = newResourcePermissions.findIndex(
+          (opt) => opt.allowed.toLowerCase() === permission.allowed
         );
         if (indexOnNew === -1) {
-          await trx.table("OAUTH2_Options").update({ deleted: true }).where({
-            allowed: option.allowed,
-            applicationPart_id: partId,
-          });
+          await trx
+            .table("OAUTH2_Permissions")
+            .update({ deleted: true })
+            .where({
+              allowed: permission.allowed,
+              applicationResource_id: resourceId,
+            });
         }
       }
 
-      if (optionsToInsert.length !== 0) {
-        await trx.table("OAUTH2_Options").insert(optionsToInsert);
+      if (permissionsToInsert.length !== 0) {
+        await trx.table("OAUTH2_Permissions").insert(permissionsToInsert);
       }
     } catch (error) {
       throw new Error(error.message);
     }
   };
 
-  controller.updatePartOptions = async (req, res) => {
+  controller.updateResourcePermissions = async (req, res) => {
     try {
-      const partId = req.params.id;
+      const resourceId = req.params.id;
 
       await knex.transaction(async (trx) => {
-        await controller.updatePartOptionsTransaction(trx, partId, req.body);
+        await controller.updateResourcePermissionsTransaction(
+          trx,
+          resourceId,
+          req.body
+        );
       });
 
       return res.status(201).json({
-        code: 200000,
-        message: "Part options updated",
+        code: 200001,
+        message: "Resource permissions updated",
       });
     } catch (error) {
       console.log(error);
@@ -1115,26 +1214,34 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
     }
   };
 
-  controller.createPart = async (req, res) => {
+  controller.createResource = async (req, res) => {
     try {
-      const { partIdentifier, applications_id } = req.body;
+      const { resourceIdentifier, applications_id } = req.body;
 
-      const insertResult = await knex.table("OAUTH2_ApplicationPart").insert({
-        partIdentifier,
-        applications_id,
-      });
+      const insertResult = await knex
+        .table("OAUTH2_ApplicationResource")
+        .insert({
+          resourceIdentifier,
+          applications_id,
+        });
 
-      const optionsToInsert = [
-        { allowed: "*", applicationPart_id: insertResult[0] },
-        { allowed: "create", applicationPart_id: insertResult[0] },
-        { allowed: "update", applicationPart_id: insertResult[0] },
-        { allowed: "delete", applicationPart_id: insertResult[0] },
-        { allowed: "select", applicationPart_id: insertResult[0] },
+      const permissionsToInsert = [
+        { allowed: "*", applicationResource_id: insertResult[0] },
+        { allowed: "create", applicationResource_id: insertResult[0] },
+        { allowed: "update", applicationResource_id: insertResult[0] },
+        { allowed: "delete", applicationResource_id: insertResult[0] },
+        { allowed: "select", applicationResource_id: insertResult[0] },
       ];
 
-      await knex.table("OAUTH2_Options").insert(optionsToInsert);
+      await knex.table("OAUTH2_Permissions").insert(permissionsToInsert);
 
-      return res.status(201).json({ code: 200000, message: "Part added" });
+      return res.status(201).json({
+        code: 200001,
+        message: "Application resource added",
+        content: {
+          applicationResourceId: insertResult[0],
+        },
+      });
     } catch (error) {
       console.log(error);
       return res.status(500).json({
@@ -1144,33 +1251,33 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
     }
   };
 
-  controller.deletePartTransaction = async (trx, partId) => {
+  controller.deleteResourceTransaction = async (trx, resourceId) => {
     try {
       await trx
-        .table("OAUTH2_ApplicationPart")
+        .table("OAUTH2_ApplicationResource")
         .update({ deleted: true })
-        .where({ id: partId });
+        .where({ id: resourceId });
 
       await trx
-        .table("OAUTH2_Options")
+        .table("OAUTH2_Permissions")
         .update({ deleted: true })
-        .where({ applicationPart_id: partId });
+        .where({ applicationResource_id: resourceId });
     } catch (error) {
       throw new Error(error.message);
     }
   };
 
-  controller.deletePart = async (req, res) => {
+  controller.deleteResource = async (req, res) => {
     try {
-      const partId = req.params.id;
+      const resourceId = req.params.id;
 
       await knex.transaction(async (trx) => {
-        await controller.deletePartTransaction(trx, partId);
+        await controller.deleteResourceTransaction(trx, resourceId);
       });
 
       return res.status(201).json({
-        code: 200000,
-        message: "Part options updated",
+        code: 200001,
+        message: "Resource deleted",
       });
     } catch (error) {
       console.log(error);
@@ -1243,6 +1350,7 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
       const token = jwt.sign(
         {
           data: {
+            id: parsedUser[0].id,
             subjectType: "user",
             username: preUser[0].username,
           },
@@ -1261,6 +1369,364 @@ const authControllers = (knex, jwtSecret, expiresIn = "24h") => {
           name: parsedUser[0].name,
           userId: parsedUser[0].id,
           roles: parsedUser[0].roles,
+        },
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        code: 500000,
+        message: error.message,
+      });
+    }
+  };
+
+  controller.token = async (req, res) => {
+    try {
+      const grant_type = req.body.grant_type;
+
+      if (grant_type !== "client_credentials" && grant_type !== "password") {
+        return res.status(400).json({
+          code: 400400,
+          message: "Unsupported grand type",
+        });
+      }
+
+      if (grant_type === "client_credentials") {
+        const { client_id, client_secret } = req.body;
+        const [clientResponse, error] = await controller.handleClientToken(
+          client_id,
+          client_secret
+        );
+
+        if (error === 400001) {
+          return res.status(401).json({
+            code: 400001,
+            message: "Incorrect client secret",
+          });
+        } else if (error === 400011) {
+          return res.status(401).json({
+            code: 400011,
+            message:
+              "Client is not able to generate tokens, use your long live token",
+          });
+        } else if (error === 400004) {
+          return res.status(404).json({
+            code: 400004,
+            message: "Client not found",
+          });
+        } else if (error) {
+          return res.status(500).json({
+            code: 500000,
+            message: error,
+          });
+        }
+
+        return res.status(201).json({
+          message: `Token generated for client ${client_id}`,
+          code: 200000,
+          content: clientResponse,
+        });
+      }
+
+      const { username, password } = req.body;
+
+      const [userResponse, error] = await controller.handleUserToken(
+        username,
+        password
+      );
+
+      if (error === 400001) {
+        return res.status(401).json({
+          code: 400001,
+          message: "Incorrect user password",
+        });
+      } else if (error === 400004) {
+        return res.status(404).json({
+          code: 400004,
+          message: "User not found",
+        });
+      } else if (error) {
+        return res.status(500).json({
+          code: 500000,
+          message: error,
+        });
+      }
+
+      return res.status(201).json({
+        message: `Token generated for user ${username}`,
+        code: 200000,
+        content: userResponse,
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        code: 500000,
+        message: error.message,
+      });
+    }
+  };
+
+  controller.handleClientToken = async (client_id, client_secret) => {
+    try {
+      const client = await knex
+        .table("OAUTH2_Clients")
+        .select(
+          "OAUTH2_Subjects.name",
+          "OAUTH2_Subjects.description",
+          "OAUTH2_Clients.*",
+          "OAUTH2_Roles.identifier as roles"
+        )
+        .join(
+          "OAUTH2_Subjects",
+          "OAUTH2_Clients.subject_id",
+          "OAUTH2_Subjects.id"
+        )
+        .join(
+          "OAUTH2_SubjectRole",
+          "OAUTH2_SubjectRole.subject_id",
+          "OAUTH2_Subjects.id"
+        )
+        .join("OAUTH2_Roles", "OAUTH2_Roles.id", "OAUTH2_SubjectRole.roles_id")
+        .where("OAUTH2_Clients.client_id", client_id)
+        .andWhere("OAUTH2_Clients.deleted", false);
+
+      if ((client && client.length === 0) || client === undefined) {
+        return [null, 400004];
+      }
+
+      const helpers = generalHelpers();
+      const parsedClient = helpers.joinSearch(client, "id", "roles");
+
+      if (parsedClient[0].access_token) {
+        return [null, 400011];
+      }
+
+      const algorithm = "aes-256-ctr";
+      const keySplit = parsedClient[0].client_secret.split("|.|");
+      const encryptedSecret = keySplit[1];
+      const initVector = Buffer.from(keySplit[0], "hex");
+      const key = crypto.scryptSync(cryptoSecret, "salt", 32);
+      const decipher = crypto.createDecipheriv(algorithm, key, initVector);
+
+      let decryptedData = decipher.update(encryptedSecret, "hex", "utf-8");
+
+      decryptedData += decipher.final("utf8");
+
+      if (client_secret !== decryptedData) {
+        return [null, 400001];
+      }
+
+      const token = jwt.sign(
+        {
+          data: {
+            id: client_id,
+            subjectType: "client",
+            identifier: parsedClient[0].identifier,
+          },
+        },
+        jwtSecret,
+        {
+          expiresIn: expiresIn,
+        }
+      );
+
+      return [
+        {
+          jwt_token: token,
+          name: parsedClient[0].name,
+          description: parsedClient[0].description,
+          client_id: parsedClient[0].id,
+          identifier: parsedClient[0].identifier,
+          roles: parsedClient[0].roles,
+        },
+        null,
+      ];
+    } catch (error) {
+      return [null, error.message];
+    }
+  };
+
+  controller.handleUserToken = async (username, password) => {
+    try {
+      const user = await knex
+        .table("OAUTH2_Users")
+        .select(
+          "OAUTH2_Subjects.name",
+          "OAUTH2_Subjects.description",
+          "OAUTH2_Users.*",
+          "OAUTH2_Roles.identifier as roles"
+        )
+        .join(
+          "OAUTH2_Subjects",
+          "OAUTH2_Users.subject_id",
+          "OAUTH2_Subjects.id"
+        )
+        .join(
+          "OAUTH2_SubjectRole",
+          "OAUTH2_SubjectRole.subject_id",
+          "OAUTH2_Subjects.id"
+        )
+        .join("OAUTH2_Roles", "OAUTH2_Roles.id", "OAUTH2_SubjectRole.roles_id")
+        .where("OAUTH2_Users.username", username.toLowerCase())
+        .andWhere("OAUTH2_Users.deleted", false);
+
+      if ((user && user.length === 0) || user === undefined) {
+        return [null, 400004];
+      }
+
+      const helpers = generalHelpers();
+      const parsedUser = helpers.joinSearch(user, "id", "roles");
+
+      const correctUserPassword = await bcrypt.compare(
+        password,
+        parsedUser[0].password
+      );
+
+      if (!correctUserPassword) {
+        return [null, 400001];
+      }
+
+      const token = jwt.sign(
+        {
+          data: {
+            id: parsedUser[0].id,
+            subjectType: "user",
+            username: parsedUser[0].username,
+          },
+        },
+        jwtSecret,
+        {
+          expiresIn: expiresIn,
+        }
+      );
+
+      return [
+        {
+          jwt_token: token,
+          name: parsedUser[0].name,
+          description: parsedUser[0].description,
+          user_id: parsedUser[0].id,
+          username: parsedUser[0].username,
+          roles: parsedUser[0].roles,
+        },
+        null,
+      ];
+    } catch (error) {
+      return [null, error.message];
+    }
+  };
+
+  controller.revokeToken = async (req, res) => {
+    try {
+      const { revoke } = req.body;
+      const { id } = req.params;
+
+      const updateResult = await knex
+        .table("OAUTH2_Clients")
+        .update({ revoked: revoke })
+        .where("id", id);
+
+      return res.status(201).json({
+        message: `Token ${revoke ? "revoked" : "rectified"}`,
+        code: 200001,
+        content: updateResult,
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        code: 500000,
+        message: error.message,
+      });
+    }
+  };
+
+  controller.generateLongLive = async (req, res) => {
+    try {
+      const { remove_long_live } = req.query;
+      const { identifier } = req.body;
+      const { id } = req.params;
+
+      if (remove_long_live === true || remove_long_live === "true") {
+        await knex
+          .table("OAUTH2_Clients")
+          .update({
+            access_token: null,
+          })
+          .where("OAUTH2_Clients.id", "=", id);
+        return res.status(201).json({
+          message: `Token removed`,
+          code: 200001,
+        });
+      }
+
+      const access_token = jwt.sign(
+        {
+          data: {
+            id: id,
+            subjectType: "client",
+            identifier: identifier.toLowerCase(),
+          },
+        },
+        jwtSecret
+      );
+
+      const encryptedAccessToken = await bcrypt.hash(access_token, 10);
+
+      await knex
+        .table("OAUTH2_Clients")
+        .update({
+          access_token: encryptedAccessToken,
+        })
+        .where("OAUTH2_Clients.id", "=", id);
+
+      return res.status(201).json({
+        message: `Token generated`,
+        code: 200000,
+        content: { access_token },
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        code: 500000,
+        message: error.message,
+      });
+    }
+  };
+
+  controller.getClientSecret = async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const client = (
+        await knex
+          .table("OAUTH2_Clients")
+          .select("OAUTH2_Clients.client_secret")
+          .where("OAUTH2_Clients.id", id)
+      )[0];
+
+      if (!client) {
+        return res.status(404).json({
+          code: 400400,
+          message: "Client not found",
+        });
+      }
+
+      const algorithm = "aes-256-ctr";
+      const keySplit = client.client_secret.split("|.|");
+      const encryptedSecret = keySplit[1];
+      const initVector = Buffer.from(keySplit[0], "hex");
+      const key = crypto.scryptSync(cryptoSecret, "salt", 32);
+      const decipher = crypto.createDecipheriv(algorithm, key, initVector);
+
+      let decryptedData = decipher.update(encryptedSecret, "hex", "utf-8");
+
+      decryptedData += decipher.final("utf8");
+
+      return res.status(200).json({
+        code: 200000,
+        message: "Client secret",
+        content: {
+          clientSecret: decryptedData,
         },
       });
     } catch (error) {

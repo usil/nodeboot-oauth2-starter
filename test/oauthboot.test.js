@@ -3,7 +3,7 @@ const OauthBoot = require("../src/OauthBoot.js");
 
 const mockedKnex = {};
 const jwtSecret = "secret";
-const extraParts = ["extra"];
+const extraResources = ["extra"];
 
 const expressMock = () => {
   const express = { getMemory: {} };
@@ -32,11 +32,12 @@ describe("OauthBoot class and his functions work as required", () => {
       expressMock(),
       mockedKnex,
       jwtSecret,
-      extraParts
+      "crypto",
+      extraResources
     );
 
     expect(oauthBoot.jwtSecret).toBe("secret");
-    expect(oauthBoot.extraParts).toStrictEqual(["extra"]);
+    expect(oauthBoot.extraResources).toStrictEqual(["extra"]);
     expect(oauthBoot.expressApp).toBeTruthy();
     expect(oauthBoot.knex).toBeTruthy();
     expect(oauthBoot.expiresIn).toBe("24h");
@@ -46,7 +47,7 @@ describe("OauthBoot class and his functions work as required", () => {
       expressMock,
       mockedKnex,
       jwtSecret,
-      extraParts
+      extraResources
     );
     oauthBoot.setTokenExpirationTime("20h");
     expect(oauthBoot.expiresIn).toBe("20h");
@@ -57,7 +58,7 @@ describe("OauthBoot class and his functions work as required", () => {
       expressMock(),
       mockedKnex,
       jwtSecret,
-      extraParts
+      extraResources
     );
     expect(oauthBoot.bootOauthExpress).toHaveBeenCalledTimes(1);
     jest.restoreAllMocks();
@@ -67,7 +68,7 @@ describe("OauthBoot class and his functions work as required", () => {
       expressMock(),
       mockedKnex,
       jwtSecret,
-      extraParts
+      extraResources
     );
     const expressWrapper = {
       createSecurePost: jest.fn(),
@@ -86,7 +87,7 @@ describe("OauthBoot class and his functions work as required", () => {
       expressMock(),
       mockedKnex,
       jwtSecret,
-      extraParts
+      extraResources
     );
 
     const expressRouter = {};
@@ -95,10 +96,10 @@ describe("OauthBoot class and his functions work as required", () => {
 
     expect(expressRouter.obPost).toBeTruthy();
   });
-  test("It does not need extra parts", () => {
+  test("It does not need extra resources", () => {
     const oauthBoot = new OauthBoot(expressMock(), mockedKnex, jwtSecret);
     expect(oauthBoot.jwtSecret).toBe("secret");
-    expect(oauthBoot.extraParts).toStrictEqual([]);
+    expect(oauthBoot.extraResources).toStrictEqual([]);
     expect(oauthBoot.expressApp).toBeTruthy();
     expect(oauthBoot.knex).toBeTruthy();
     expect(oauthBoot.expiresIn).toBe("24h");

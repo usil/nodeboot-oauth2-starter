@@ -29,30 +29,30 @@ class ExpressWrapper {
     };
   };
 
-  createSecurePostRouter = (expressApp, expressRouter, guard) => {
+  createSecurePostRouter = (expressApp, expressRouter, routePath, guard) => {
     return (path, allowed, ...handler) => {
-      expressApp.set("POST" + "||" + path, allowed);
+      expressApp.set("POST" + "||" + `${routePath}${path}`, allowed);
       return expressRouter.post(path, guard(), ...handler);
     };
   };
 
-  createSecureGetRouter = (expressApp, expressRouter, guard) => {
+  createSecureGetRouter = (expressApp, expressRouter, routePath, guard) => {
     return (path, allowed, ...handler) => {
-      expressApp.set("GET" + "||" + path, allowed);
+      expressApp.set("GET" + "||" + `${routePath}${path}`, allowed);
       return expressRouter.get(path, guard(), ...handler);
     };
   };
 
-  createSecurePutRouter = (expressApp, expressRouter, guard) => {
+  createSecurePutRouter = (expressApp, expressRouter, routePath, guard) => {
     return (path, allowed, ...handler) => {
-      expressApp.set("PUT" + "||" + path, allowed);
+      expressApp.set("PUT" + "||" + `${routePath}${path}`, allowed);
       return expressRouter.put(path, guard(), ...handler);
     };
   };
 
-  createSecureDeleteRouter = (expressApp, expressRouter, guard) => {
+  createSecureDeleteRouter = (expressApp, expressRouter, routePath, guard) => {
     return (path, allowed, ...handler) => {
-      expressApp.set("DELETE" + "||" + path, allowed);
+      expressApp.set("DELETE" + "||" + `${routePath}${path}`, allowed);
       return expressRouter.delete(path, guard(), ...handler);
     };
   };

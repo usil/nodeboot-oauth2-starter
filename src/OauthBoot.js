@@ -4,18 +4,31 @@ const tableCreation = require("./helpers/table-creation.js");
 const authSecureRoutes = require("./helpers/routes/routes.js");
 const generalHelpers = require("./helpers/general-helpers.js");
 class OauthBoot {
-  constructor(expressApp, knex, jwtSecret, extraParts = []) {
+  constructor(
+    expressApp,
+    knex,
+    jwtSecret,
+    cryptoSecret,
+    extraResources = [],
+    mainApplicationName = "OAUTH2_main_application",
+    clientIdSuffix = "::client.app"
+  ) {
+    this.cryptoSecret = cryptoSecret;
     this.expressApp = expressApp;
     this.knex = knex;
     const expressWrapper = new ExpressWrapper();
     this.expressSecured = this.bootOauthExpress(expressApp, expressWrapper);
     this.jwtSecret = jwtSecret;
-    this.extraParts = extraParts;
+    this.extraResources = extraResources;
     this.expiresIn = "24h";
+    this.mainApplicationName = mainApplicationName;
+    this.clientIdSuffix = clientIdSuffix;
     this.tableCreationHelper = tableCreation(
       this.knex,
-      this.jwtSecret,
-      this.extraParts
+      this.cryptoSecret,
+      this.extraResources,
+      this.mainApplicationName,
+      this.clientIdSuffix
     );
   }
 
@@ -47,30 +60,34 @@ class OauthBoot {
     return expressApp;
   }
 
-  bootOauthExpressRouter(expressRouter) {
+  bootOauthExpressRouter(expressRouter, routePath) {
     const expressWrapper = new ExpressWrapper();
 
     expressRouter.obPost = expressWrapper.createSecurePostRouter(
       this.expressApp,
       expressRouter,
+      routePath,
       security(this.knex, this.expressApp).guard
     );
 
     expressRouter.obGet = expressWrapper.createSecureGetRouter(
       this.expressApp,
       expressRouter,
+      routePath,
       security(this.knex, this.expressApp).guard
     );
 
     expressRouter.obPut = expressWrapper.createSecurePutRouter(
       this.expressApp,
       expressRouter,
+      routePath,
       security(this.knex, this.expressApp).guard
     );
 
     expressRouter.obDelete = expressWrapper.createSecureDeleteRouter(
       this.expressApp,
       expressRouter,
+      routePath,
       security(this.knex, this.expressApp).guard
     );
 
@@ -93,7 +110,9 @@ class OauthBoot {
         this.knex,
         helper.validateBody,
         this.jwtSecret,
-        this.expiresIn
+        this.expiresIn,
+        this.cryptoSecret,
+        this.clientIdSuffix
       );
     } catch (error) {
       console.log(error);
