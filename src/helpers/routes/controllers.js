@@ -1035,6 +1035,7 @@ const authControllers = (
         .orderBy("OAUTH2_Permissions.id", "asc");
 
       const helpers = generalHelpers();
+      console.log(resourcesFullResult);
       const parsedResources = helpers.parseResourceSearch(resourcesFullResult);
 
       return res.status(200).json({
