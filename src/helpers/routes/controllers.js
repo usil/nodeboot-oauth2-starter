@@ -1032,7 +1032,7 @@ const authControllers = (
         )
         .where("OAUTH2_ApplicationResource.deleted", false)
         .where("OAUTH2_Permissions.deleted", false)
-        .orderBy("OAUTH2_Permissions.id", "asc");
+        .orderBy("OAUTH2_ApplicationResource.id", "asc");
 
       const helpers = generalHelpers();
       console.log(resourcesFullResult);
