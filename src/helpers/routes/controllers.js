@@ -1016,8 +1016,7 @@ const authControllers = (
       const resourcesFullResult = await knex({
         OAUTH2_ApplicationResource: knex("OAUTH2_ApplicationResource")
           .limit(itemsPerPage)
-          .offset(offset)
-          .orderBy("OAUTH2_ApplicationResource.id", order),
+          .offset(offset),
       })
         .select(
           "OAUTH2_ApplicationResource.resourceIdentifier as applicationResourceName",
@@ -1032,7 +1031,7 @@ const authControllers = (
         )
         .where("OAUTH2_ApplicationResource.deleted", false)
         .where("OAUTH2_Permissions.deleted", false)
-        .orderBy("OAUTH2_Permissions.id", "asc");
+        .orderBy("OAUTH2_ApplicationResource.id", order);
 
       const helpers = generalHelpers();
       const parsedResources = helpers.parseResourceSearch(resourcesFullResult);
