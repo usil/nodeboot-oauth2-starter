@@ -1492,184 +1492,6 @@ describe("All auth controllers work", () => {
     });
   });
 
-  test("Update user roles ", async () => {
-    const knex = {
-      table: jest.fn().mockReturnThis(),
-      insert: jest.fn().mockResolvedValue([1]),
-    };
-
-    const req = {
-      body: {
-        roles: [{ id: 1 }, { id: 2 }],
-      },
-      params: {
-        id: 1,
-      },
-    };
-
-    const res = {
-      status: jest.fn().mockReturnThis(),
-      json: jest.fn(),
-    };
-
-    const controllers = authControllers(knex, "secret");
-    await controllers.updateUserRoles(req, res);
-
-    expect(knex.table).toHaveBeenCalledWith("OAUTH2_SubjectRole");
-
-    expect(knex.insert).toHaveBeenCalledWith([
-      { subject_id: 1, roles_id: 1 },
-      { subject_id: 1, roles_id: 2 },
-    ]);
-
-    expect(res.status).toHaveBeenCalledWith(201);
-  });
-
-  test("Update user roles no user id", async () => {
-    const knex = {
-      table: jest.fn().mockReturnThis(),
-      insert: jest.fn().mockResolvedValue([1]),
-    };
-
-    const req = {
-      body: {
-        roles: [{ id: 1 }, { id: 2 }],
-      },
-      params: {
-        id: "xx",
-      },
-    };
-
-    const res = {
-      status: jest.fn().mockReturnThis(),
-      json: jest.fn(),
-    };
-
-    const controllers = authControllers(knex, "secret");
-    await controllers.updateUserRoles(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith({
-      code: 400000,
-      message: "User id is not valid",
-    });
-  });
-
-  test("Update user roles fails", async () => {
-    const knex = {
-      table: jest.fn().mockReturnThis(),
-      insert: jest.fn().mockRejectedValueOnce(new Error("Async error")),
-    };
-
-    const req = {
-      body: {
-        roles: [{ id: 1 }, { id: 2 }],
-      },
-      params: {
-        id: 1,
-      },
-    };
-
-    const res = {
-      status: jest.fn().mockReturnThis(),
-      json: jest.fn(),
-    };
-
-    const controllers = authControllers(knex, "secret");
-    await controllers.updateUserRoles(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(500);
-  });
-
-  test("Update client roles ", async () => {
-    const knex = {
-      table: jest.fn().mockReturnThis(),
-      insert: jest.fn().mockResolvedValue([1]),
-    };
-
-    const req = {
-      body: {
-        roles: [{ id: 1 }, { id: 2 }],
-      },
-      params: {
-        id: 1,
-      },
-    };
-
-    const res = {
-      status: jest.fn().mockReturnThis(),
-      json: jest.fn(),
-    };
-
-    const controllers = authControllers(knex, "secret");
-    await controllers.updateClientRoles(req, res);
-
-    expect(knex.table).toHaveBeenCalledWith("OAUTH2_SubjectRole");
-
-    expect(knex.insert).toHaveBeenCalledWith([
-      { subject_id: 1, roles_id: 1 },
-      { subject_id: 1, roles_id: 2 },
-    ]);
-
-    expect(res.status).toHaveBeenCalledWith(201);
-  });
-
-  test("Update client roles no user id", async () => {
-    const knex = {
-      table: jest.fn().mockReturnThis(),
-      insert: jest.fn().mockResolvedValue([1]),
-    };
-
-    const req = {
-      body: {
-        roles: [{ id: 1 }, { id: 2 }],
-      },
-      params: {
-        id: "xx",
-      },
-    };
-
-    const res = {
-      status: jest.fn().mockReturnThis(),
-      json: jest.fn(),
-    };
-
-    const controllers = authControllers(knex, "secret");
-    await controllers.updateClientRoles(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith({
-      code: 400000,
-      message: "User id is not valid",
-    });
-  });
-
-  test("Update client roles fails", async () => {
-    const knex = {
-      table: jest.fn().mockReturnThis(),
-      insert: jest.fn().mockRejectedValueOnce(new Error("Async error")),
-    };
-
-    const req = {
-      body: {
-        roles: [{ id: 1 }, { id: 2 }],
-      },
-      params: {
-        id: 1,
-      },
-    };
-
-    const res = {
-      status: jest.fn().mockReturnThis(),
-      json: jest.fn(),
-    };
-
-    const controllers = authControllers(knex, "secret");
-    await controllers.updateClientRoles(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(500);
-  });
-
   test("Delete user transaction", async () => {
     const trxMock = {
       table: jest.fn().mockReturnThis(),
@@ -3827,5 +3649,62 @@ describe("All auth controllers work", () => {
     expect(res.status).toHaveBeenCalledWith(201);
 
     expect(knex.update).toHaveBeenCalledWith({ revoked: false });
+  });
+
+  test("Update subject roles works", async () => {
+    const roles = [
+      {
+        id: 1,
+      },
+      {
+        id: 2,
+      },
+      {
+        id: 4,
+      },
+    ];
+
+    const originalRolesList = [
+      {
+        id: 1,
+      },
+      {
+        id: 2,
+      },
+      {
+        id: 3,
+      },
+    ];
+
+    const req = {
+      body: {
+        originalRolesList,
+        roles,
+      },
+      params: {
+        id: 1,
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knex = {
+      table: jest.fn().mockReturnThis(),
+      del: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnValue(1),
+      insert: jest.fn().mockReturnValue(1),
+    };
+
+    const controllers = authControllers(knex, "secret");
+    await controllers.updateSubjectRoles(req, res);
+
+    expect(knex.table).toHaveBeenCalledWith("OAUTH2_SubjectRole");
+    expect(knex.table).toHaveBeenCalledTimes(2);
+
+    expect(knex.del).toHaveBeenCalledTimes(1);
   });
 });
