@@ -106,12 +106,13 @@ const authSecureRoutes = (
     controller.updateUserRoles
   );
 
-  // client user roles
+  // client client roles
   expressSecured.obPut(
     "/auth/client/:id/role",
     "OAUTH2_client:update",
     validateBodyMiddleware({
       roles: { type: "array" },
+      originalRolesList: { type: "array" },
     }).validate,
     controller.updateClientRoles
   );
