@@ -621,58 +621,51 @@ const authControllers = (
     }
   };
 
-  controller.updateUserRoles = async (req, res) => {
+  controller.updateSubjectRoles = async (req, res) => {
     try {
-      const { roles } = req.body;
+      const { roles, originalRolesList } = req.body;
+      const subjectId = req.params.subjectId;
 
-      const userId = req.params.id;
-
-      if (userId && isNaN(userId)) {
+      if (subjectId && isNaN(subjectId)) {
         return res.status(400).json({
           code: 400000,
-          message: "User id is not valid",
+          message: "Subject id is not valid",
         });
       }
 
-      const subjectRolesToInsert = roles.map((r) => {
-        return { subject_id: userId, roles_id: r.id };
+      const rolesToDelete = originalRolesList.flatMap((r) => {
+        const indexInNewRoleList = roles.findIndex((nr) => nr.id === r.id);
+        if (indexInNewRoleList === -1) {
+          return r.id;
+        }
+        return [];
       });
 
-      await knex.table("OAUTH2_SubjectRole").insert(subjectRolesToInsert);
-
-      return res
-        .status(201)
-        .json({ code: 200000, message: "User roles added" });
-    } catch (error) {
-      console.log(error);
-      return res.status(500).json({
-        code: 500000,
-        message: error.message,
+      const subjectRolesToInsert = roles.flatMap((r) => {
+        const indexInOriginalRoleList = originalRolesList.findIndex(
+          (or) => or.id === r.id
+        );
+        if (indexInOriginalRoleList === -1) {
+          return { subject_id: subjectId, roles_id: r.id };
+        }
+        return [];
       });
-    }
-  };
 
-  controller.updateClientRoles = async (req, res) => {
-    try {
-      const { roles } = req.body;
-      const clientId = req.params.id;
-
-      if (clientId && isNaN(clientId)) {
-        return res.status(400).json({
-          code: 400000,
-          message: "User id is not valid",
-        });
+      if (rolesToDelete.length > 0) {
+        await knex
+          .table("OAUTH2_SubjectRole")
+          .del()
+          .where("roles_id", "in", rolesToDelete)
+          .andWhere("subject_id", subjectId);
       }
 
-      const subjectRolesToInsert = roles.map((r) => {
-        return { subject_id: clientId, roles_id: r.id };
-      });
-
-      await knex.table("OAUTH2_SubjectRole").insert(subjectRolesToInsert);
+      if (subjectRolesToInsert.length > 0) {
+        await knex.table("OAUTH2_SubjectRole").insert(subjectRolesToInsert);
+      }
 
       return res
         .status(201)
-        .json({ code: 200000, message: "Client roles added" });
+        .json({ code: 200000, message: "Subject roles updated" });
     } catch (error) {
       return res.status(500).json({
         code: 500000,
@@ -1016,8 +1009,7 @@ const authControllers = (
       const resourcesFullResult = await knex({
         OAUTH2_ApplicationResource: knex("OAUTH2_ApplicationResource")
           .limit(itemsPerPage)
-          .offset(offset)
-          .orderBy("OAUTH2_ApplicationResource.id", order),
+          .offset(offset),
       })
         .select(
           "OAUTH2_ApplicationResource.resourceIdentifier as applicationResourceName",
@@ -1032,7 +1024,7 @@ const authControllers = (
         )
         .where("OAUTH2_ApplicationResource.deleted", false)
         .where("OAUTH2_Permissions.deleted", false)
-        .orderBy("OAUTH2_Permissions.id", "asc");
+        .orderBy("OAUTH2_ApplicationResource.id", order);
 
       const helpers = generalHelpers();
       const parsedResources = helpers.parseResourceSearch(resourcesFullResult);
