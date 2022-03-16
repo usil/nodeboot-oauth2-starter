@@ -682,15 +682,20 @@ const authControllers = (
         return [];
       });
 
-      await knex
-        .table("OAUTH2_SubjectRole")
-        .del()
-        .where("id", "in", rolesToDelete);
-      await knex.table("OAUTH2_SubjectRole").insert(subjectRolesToInsert);
+      if (rolesToDelete.length > 0) {
+        await knex
+          .table("OAUTH2_SubjectRole")
+          .del()
+          .where("id", "in", rolesToDelete);
+      }
+
+      if (subjectRolesToInsert.length > 0) {
+        await knex.table("OAUTH2_SubjectRole").insert(subjectRolesToInsert);
+      }
 
       return res
         .status(201)
-        .json({ code: 200000, message: "Client roles added" });
+        .json({ code: 200000, message: "Client roles updated" });
     } catch (error) {
       return res.status(500).json({
         code: 500000,
