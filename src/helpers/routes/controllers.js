@@ -621,46 +621,15 @@ const authControllers = (
     }
   };
 
-  controller.updateUserRoles = async (req, res) => {
-    try {
-      const { roles } = req.body;
-
-      const userId = req.params.id;
-
-      if (userId && isNaN(userId)) {
-        return res.status(400).json({
-          code: 400000,
-          message: "User id is not valid",
-        });
-      }
-
-      const subjectRolesToInsert = roles.map((r) => {
-        return { subject_id: userId, roles_id: r.id };
-      });
-
-      await knex.table("OAUTH2_SubjectRole").insert(subjectRolesToInsert);
-
-      return res
-        .status(201)
-        .json({ code: 200000, message: "User roles added" });
-    } catch (error) {
-      console.log(error);
-      return res.status(500).json({
-        code: 500000,
-        message: error.message,
-      });
-    }
-  };
-
-  controller.updateClientRoles = async (req, res) => {
+  controller.updateSubjectRoles = async (req, res) => {
     try {
       const { roles, originalRolesList } = req.body;
-      const subjectId = req.params.id;
+      const subjectId = req.params.subjectId;
 
       if (subjectId && isNaN(subjectId)) {
         return res.status(400).json({
           code: 400000,
-          message: "Client id is not valid",
+          message: "Subject id is not valid",
         });
       }
 
@@ -683,7 +652,6 @@ const authControllers = (
       });
 
       if (rolesToDelete.length > 0) {
-        console.log("1", rolesToDelete);
         await knex
           .table("OAUTH2_SubjectRole")
           .del()
@@ -692,13 +660,12 @@ const authControllers = (
       }
 
       if (subjectRolesToInsert.length > 0) {
-        console.log("2", subjectRolesToInsert);
         await knex.table("OAUTH2_SubjectRole").insert(subjectRolesToInsert);
       }
 
       return res
         .status(201)
-        .json({ code: 200000, message: "Client roles updated" });
+        .json({ code: 200000, message: "Subject roles updated" });
     } catch (error) {
       return res.status(500).json({
         code: 500000,

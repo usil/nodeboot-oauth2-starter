@@ -98,23 +98,24 @@ const authSecureRoutes = (
 
   // update user roles
   expressSecured.obPut(
-    "/auth/user/:id/role",
+    "/auth/user/:subjectId/role",
     "OAUTH2_user:update",
     validateBodyMiddleware({
       roles: { type: "array" },
+      originalRolesList: { type: "array" },
     }).validate,
-    controller.updateUserRoles
+    controller.updateSubjectRoles
   );
 
   // client client roles
   expressSecured.obPut(
-    "/auth/client/:id/role",
+    "/auth/client/:subjectId/role",
     "OAUTH2_client:update",
     validateBodyMiddleware({
       roles: { type: "array" },
       originalRolesList: { type: "array" },
     }).validate,
-    controller.updateClientRoles
+    controller.updateSubjectRoles
   );
 
   // delete user
