@@ -654,20 +654,38 @@ const authControllers = (
 
   controller.updateClientRoles = async (req, res) => {
     try {
-      const { roles } = req.body;
+      const { roles, originalRolesList } = req.body;
       const clientId = req.params.id;
 
       if (clientId && isNaN(clientId)) {
         return res.status(400).json({
           code: 400000,
-          message: "User id is not valid",
+          message: "Client id is not valid",
         });
       }
 
-      const subjectRolesToInsert = roles.map((r) => {
-        return { subject_id: clientId, roles_id: r.id };
+      const rolesToDelete = originalRolesList.flatMap((r) => {
+        const indexInNewRoleList = roles.findIndex((nr) => nr.id === r.id);
+        if (indexInNewRoleList === -1) {
+          return r.id;
+        }
+        return [];
       });
 
+      const subjectRolesToInsert = roles.flatMap((r) => {
+        const indexInOriginalRoleList = originalRolesList.findIndex(
+          (or) => or.id === r.id
+        );
+        if (indexInOriginalRoleList === -1) {
+          return { subject_id: clientId, roles_id: r.id };
+        }
+        return [];
+      });
+
+      await knex
+        .table("OAUTH2_SubjectRole")
+        .del()
+        .where("id", "in", rolesToDelete);
       await knex.table("OAUTH2_SubjectRole").insert(subjectRolesToInsert);
 
       return res
