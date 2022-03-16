@@ -168,7 +168,6 @@ const generalHelpers = () => {
         }
       }
     }
-    console.log(newArray);
     return newArray;
   };
   helpersObj.parseRoleSearch = (rolesBaseArray) => {
