@@ -1008,6 +1008,7 @@ const authControllers = (
 
       const resourcesFullResult = await knex({
         OAUTH2_ApplicationResource: knex("OAUTH2_ApplicationResource")
+          .where("deleted", false)
           .limit(itemsPerPage)
           .offset(offset),
       })
@@ -1022,7 +1023,6 @@ const authControllers = (
           `OAUTH2_Permissions.applicationResource_id`,
           "OAUTH2_ApplicationResource.id"
         )
-        .where("OAUTH2_ApplicationResource.deleted", false)
         .where("OAUTH2_Permissions.deleted", false)
         .orderBy("OAUTH2_ApplicationResource.id", order);
 
