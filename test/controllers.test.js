@@ -1300,15 +1300,12 @@ describe("All auth controllers work", () => {
       const knex = {};
       knex.limit = jest.fn().mockReturnValue(knex);
       knex.offset = jest.fn().mockReturnValue(knex);
-      knex.orderBy = jest.fn();
+      knex.orderBy = jest.fn().mockReturnValue(userBaseArray);
       knex.select = jest.fn().mockReturnValue(knex);
-      knex.where = jest.fn().mockReturnValueOnce(knex);
+      knex.where = jest.fn().mockReturnValue(knex);
       knex.table = jest.fn().mockReturnValue(knex);
       knex.count = jest.fn().mockResolvedValue([{ "count(*)": 2 }]);
-      knex.join = jest.fn().mockImplementation((some) => {
-        knex.where = jest.fn().mockReturnValueOnce(userBaseArray);
-        return knex;
-      });
+      knex.join = jest.fn().mockReturnValue(knex);
       return knex;
     });
 
@@ -1453,15 +1450,12 @@ describe("All auth controllers work", () => {
       const knex = {};
       knex.limit = jest.fn().mockReturnValue(knex);
       knex.offset = jest.fn().mockReturnValue(knex);
-      knex.orderBy = jest.fn();
+      knex.orderBy = jest.fn().mockReturnValue(userBaseArray);
       knex.select = jest.fn().mockReturnValue(knex);
-      knex.where = jest.fn().mockReturnValueOnce(knex);
+      knex.where = jest.fn().mockReturnValue(knex);
       knex.table = jest.fn().mockReturnValue(knex);
       knex.count = jest.fn().mockResolvedValue([{ "count(*)": 2 }]);
-      knex.join = jest.fn().mockImplementation((some) => {
-        knex.where = jest.fn().mockReturnValueOnce(userBaseArray);
-        return knex;
-      });
+      knex.join = jest.fn().mockReturnValue(knex);
       return knex;
     });
 
@@ -2330,6 +2324,7 @@ describe("All auth controllers work", () => {
       knex.orderBy = jest.fn().mockResolvedValue(resourcesBaseArray);
       knex.select = jest.fn().mockReturnValue(knex);
       knex.where = jest.fn().mockReturnValue(knex);
+      knex.andWhere = jest.fn().mockReturnValue(resourcesBaseArray);
       knex.table = jest.fn().mockReturnValue(knex);
       knex.count = jest.fn().mockResolvedValue([{ "count(*)": 2 }]);
       knex.join = jest.fn().mockReturnValue(knex);
@@ -2407,6 +2402,7 @@ describe("All auth controllers work", () => {
       knex.orderBy = jest.fn().mockResolvedValue(resourcesBaseArray);
       knex.select = jest.fn().mockReturnValue(knex);
       knex.where = jest.fn().mockReturnValue(knex);
+      knex.andWhere = jest.fn().mockReturnValue(resourcesBaseArray);
       knex.table = jest.fn().mockReturnValue(knex);
       knex.count = jest.fn().mockResolvedValue([{ "count(*)": 2 }]);
       knex.join = jest.fn().mockReturnValue(knex);
@@ -3303,6 +3299,8 @@ describe("All auth controllers work", () => {
   });
 
   test("Generate long live token", async () => {
+    const bcryptSpy = jest.spyOn(bcrypt, "hash").mockReturnValue(true);
+
     const req = {
       query: {},
       params: { id: 1 },
@@ -3316,21 +3314,22 @@ describe("All auth controllers work", () => {
       json: jest.fn(),
     };
 
-    const knex = {
+    const knexMock = {
       table: jest.fn().mockReturnThis(),
       update: jest.fn().mockReturnThis(),
-      where: jest.fn().mockReturnThis(),
-      andWhere: jest.fn().mockResolvedValue("some"),
+      where: jest.fn().mockResolvedValue("some"),
     };
 
-    const controllers = authControllers(knex, "secret");
+    const controllers = authControllers(knexMock, "secret");
+
     await controllers.generateLongLive(req, res);
 
     expect(res.status).toHaveBeenCalledWith(201);
 
-    expect(knex.table).toHaveBeenCalledWith("OAUTH2_Clients");
-    expect(knex.update).toHaveBeenCalled();
-    expect(knex.where).toHaveBeenCalledWith("OAUTH2_Clients.id", "=", 1);
+    expect(knexMock.table).toHaveBeenCalledWith("OAUTH2_Clients");
+    expect(knexMock.update).toHaveBeenCalled();
+    expect(knexMock.where).toHaveBeenCalledWith("OAUTH2_Clients.id", "=", 1);
+    bcryptSpy.mockRestore();
   });
 
   test("Handle user token", async () => {
