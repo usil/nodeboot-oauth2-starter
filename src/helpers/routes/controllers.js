@@ -596,7 +596,8 @@ const authControllers = (
           `OAUTH2_ApplicationResource.id`,
           "OAUTH2_Permissions.applicationResource_id"
         )
-        .where("OAUTH2_Clients.deleted", false);
+        .where("OAUTH2_Clients.deleted", false)
+        .orderBy("id", order);
 
       const helper = generalHelpers();
       const parsedUsers = helper.parseSubjectSearch(clients, "client");
@@ -1010,7 +1011,8 @@ const authControllers = (
         OAUTH2_ApplicationResource: knex("OAUTH2_ApplicationResource")
           .where("deleted", false)
           .limit(itemsPerPage)
-          .offset(offset),
+          .offset(offset)
+          .orderBy("OAUTH2_ApplicationResource.id", order),
       })
         .select(
           "OAUTH2_ApplicationResource.resourceIdentifier as applicationResourceName",
@@ -1023,8 +1025,7 @@ const authControllers = (
           `OAUTH2_Permissions.applicationResource_id`,
           "OAUTH2_ApplicationResource.id"
         )
-        .where("OAUTH2_Permissions.deleted", false)
-        .orderBy("OAUTH2_ApplicationResource.id", order);
+        .where("OAUTH2_Permissions.deleted", false);
 
       const helpers = generalHelpers();
       const parsedResources = helpers.parseResourceSearch(resourcesFullResult);
