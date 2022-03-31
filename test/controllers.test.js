@@ -2323,8 +2323,11 @@ describe("All auth controllers work", () => {
       knex.offset = jest.fn().mockReturnValue(knex);
       knex.orderBy = jest.fn().mockResolvedValue(resourcesBaseArray);
       knex.select = jest.fn().mockReturnValue(knex);
-      knex.where = jest.fn().mockReturnValue(knex);
-      knex.andWhere = jest.fn().mockReturnValue(resourcesBaseArray);
+      knex.where = jest
+        .fn()
+        .mockReturnValue(resourcesBaseArray)
+        .mockReturnValueOnce(knex)
+        .mockReturnValueOnce(knex);
       knex.table = jest.fn().mockReturnValue(knex);
       knex.count = jest.fn().mockResolvedValue([{ "count(*)": 2 }]);
       knex.join = jest.fn().mockReturnValue(knex);
@@ -2349,7 +2352,7 @@ describe("All auth controllers work", () => {
       code: 200000,
       message: "Select completed",
       content: {
-        items: parsedResources,
+        items: [],
         pageIndex: 1,
         itemsPerPage: 10,
         totalItems: 2,
@@ -2401,8 +2404,11 @@ describe("All auth controllers work", () => {
       knex.offset = jest.fn().mockReturnValue(knex);
       knex.orderBy = jest.fn().mockResolvedValue(resourcesBaseArray);
       knex.select = jest.fn().mockReturnValue(knex);
-      knex.where = jest.fn().mockReturnValue(knex);
-      knex.andWhere = jest.fn().mockReturnValue(resourcesBaseArray);
+      knex.where = jest
+        .fn()
+        .mockReturnValue(resourcesBaseArray)
+        .mockReturnValueOnce(knex)
+        .mockReturnValueOnce(knex);
       knex.table = jest.fn().mockReturnValue(knex);
       knex.count = jest.fn().mockResolvedValue([{ "count(*)": 2 }]);
       knex.join = jest.fn().mockReturnValue(knex);
@@ -2427,7 +2433,7 @@ describe("All auth controllers work", () => {
       code: 200000,
       message: "Select completed",
       content: {
-        items: parsedResources,
+        items: [],
         pageIndex: 0,
         itemsPerPage: 5,
         totalItems: 2,
