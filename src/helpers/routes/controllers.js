@@ -1025,7 +1025,7 @@ const authControllers = (
           `OAUTH2_Permissions.applicationResource_id`,
           "OAUTH2_ApplicationResource.id"
         )
-        .andWhere("OAUTH2_Permissions.deleted", false);
+        .where("OAUTH2_Permissions.deleted", false);
 
       const helpers = generalHelpers();
       const parsedResources = helpers.parseResourceSearch(resourcesFullResult);
