@@ -238,7 +238,16 @@ const authSecureRoutes = (
   );
 
   // Gets a token
-  expressSecured.obPost("/auth/token", ":", controller.token);
+  expressSecured.obPost(
+    "/auth/token",
+    ":",
+    validateBodyMiddleware({
+      grant_type: { type: "string" },
+      client_id: { type: "string" },
+      client_secret: { type: "string" },
+    }).validate,
+    controller.token
+  );
 
   // Revoke tokens
   expressSecured.obPut(
