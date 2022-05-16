@@ -35,10 +35,18 @@ const generalHelpers = () => {
   helpersObj.validateBody = (validationPermissions) => {
     const validateObj = {};
     validateObj.validate = (req, res, next) => {
-      if (!helpersObj.compareKeys(req.body, validationPermissions))
-        return res.status(400).json({ code: 400000, message: "Invalid body" });
-
       for (const permission in validationPermissions) {
+        if (
+          (validationPermissions[permission].required === true ||
+            validationPermissions[permission].required === undefined) &&
+          req.body[permission] === undefined
+        ) {
+          return res.status(400).json({
+            code: 400000,
+            message: `Invalid body; ${permission} is required`,
+          });
+        }
+
         switch (validationPermissions[permission].type) {
           case "array":
             if (!Array.isArray(req.body[permission])) {
@@ -50,10 +58,8 @@ const generalHelpers = () => {
             break;
           case "string":
             if (
-              !(
-                Object.prototype.toString.call(req.body[permission]) ==
-                "[object String]"
-              )
+              Object.prototype.toString.call(req.body[permission]) !==
+              "[object String]"
             ) {
               return res.status(400).json({
                 code: 400000,
@@ -70,7 +76,7 @@ const generalHelpers = () => {
             }
             break;
           case "object":
-            if (!(typeof req.body[permission] === "object")) {
+            if (typeof req.body[permission] !== "object") {
               return res.status(400).json({
                 code: 400000,
                 message: `Invalid body; ${permission} is not an object`,
