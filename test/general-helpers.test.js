@@ -396,13 +396,15 @@ describe("All general helpers function accordingly", () => {
 
     expect(mockNext).toHaveBeenCalledTimes(5);
 
-    const permissionNone = { none: { type: "default" } };
+    const permissionRequired = { required: { type: "string", required: true } };
 
-    generalHelpers.validateBody(permissionNone).validate(req, res, mockNext);
+    generalHelpers
+      .validateBody(permissionRequired)
+      .validate(req, res, mockNext);
 
     expect(res.json).toHaveBeenCalledWith({
       code: 400000,
-      message: "Invalid body",
+      message: "Invalid body; required is required",
     });
   });
 });

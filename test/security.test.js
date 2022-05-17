@@ -242,7 +242,7 @@ describe("Security helper works", () => {
 
     const mockReq = () => {
       const request = {};
-      request.path = "correct-path";
+      request.path = "correct-path/";
       request.params = {};
       request.method = "POST";
       return request;

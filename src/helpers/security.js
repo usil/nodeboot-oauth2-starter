@@ -27,8 +27,14 @@ const security = (knex, expressSecured) => {
 
   securityObj.realGuard = async (req, res, next) => {
     try {
+      let securityString = `${req.baseUrl ? req.baseUrl : ""}${req.path}`;
+
+      if (securityString.slice(securityString.length - 1) === "/") {
+        securityString = securityString.slice(0, -1);
+      }
+
       const exp = securityObj.getExpression(
-        `${req.baseUrl ? req.baseUrl : ""}${req.path}`,
+        securityString,
         req.method,
         req.params
       );
