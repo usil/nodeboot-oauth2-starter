@@ -66,8 +66,6 @@ const security = (knex, expressSecured) => {
           .json({ code: 403100, message: "Subject not authorized" });
       }
 
-      console.log(user);
-
       const subjectTableToSearch =
         user.subjectType === "user" ? "OAUTH2_Users" : "OAUTH2_Clients";
 
