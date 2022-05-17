@@ -29,7 +29,10 @@ const security = (knex, expressSecured) => {
     try {
       let securityString = `${req.baseUrl ? req.baseUrl : ""}${req.path}`;
 
-      if (securityString.slice(securityString.length - 1) === "/") {
+      if (
+        securityString.slice(securityString.length - 1) === "/" &&
+        securityString !== "/"
+      ) {
         securityString = securityString.slice(0, -1);
       }
 
