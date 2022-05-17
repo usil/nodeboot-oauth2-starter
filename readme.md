@@ -151,6 +151,10 @@ expressApp.obPut('/', 'applicationResource:resourcePermission', (req, res) => {.
 expressApp.obDelete('/', 'applicationResource:resourcePermission', (req, res) => {...});
 ```
 
+### IMPORTANT
+
+The declaration of `expressApp.obGet('/somePath', ...);` should be done like that DO NOT USE `/somePath/`.
+
 ### Accessing the protected endpoints
 
 You will need a token, to generate jwt tokes you will need to call `/auth/token?grant_type=<password or client_credentials>` endpoint. Password for users and client_credentials for clients. The password and username of the user in the body, the client_secret and client_id in the query url if the subject is a client.
