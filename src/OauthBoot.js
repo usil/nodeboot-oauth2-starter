@@ -13,6 +13,7 @@ class OauthBoot {
     mainApplicationName = "OAUTH2_main_application",
     clientIdSuffix = "::client.app"
   ) {
+    this.delegateErrorHandle = false;
     this.cryptoSecret = cryptoSecret;
     this.expressApp = expressApp;
     this.knex = knex;
@@ -30,6 +31,10 @@ class OauthBoot {
       this.mainApplicationName,
       this.clientIdSuffix
     );
+  }
+
+  setErrorHandleType(delegateErrorHandle) {
+    this.delegateErrorHandle = delegateErrorHandle;
   }
 
   setTokenExpirationTime(timeString) {

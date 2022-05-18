@@ -27,6 +27,22 @@ const generalHelpers = () => {
     }
     return newArray;
   };
+  helpersObj.parsePathNoRoute = (path) => {
+    let parsedPath = path;
+    if (parsedPath.slice(parsedPath.length - 1) === "/" && parsedPath !== "/") {
+      parsedPath = parsedPath.slice(0, -1);
+    }
+    return parsedPath;
+  };
+  helpersObj.parsePathWithRoute = (path) => {
+    if (path === "/") {
+      return "";
+    }
+    if (path.slice(path.length - 1) === "/") {
+      return path.slice(0, -1);
+    }
+    return path;
+  };
   helpersObj.compareKeys = (a, b) => {
     var aKeys = Object.keys(a).sort();
     var bKeys = Object.keys(b).sort();

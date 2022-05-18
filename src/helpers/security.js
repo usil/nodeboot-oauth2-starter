@@ -20,9 +20,7 @@ const security = (knex, expressSecured) => {
       }
     }
 
-    const exp = expressSecured.get(pathToSearch);
-
-    return exp;
+    return expressSecured.get(pathToSearch);
   };
 
   securityObj.realGuard = async (req, res, next) => {
@@ -43,9 +41,15 @@ const security = (knex, expressSecured) => {
       );
 
       if (exp === undefined) {
-        return res
-          .status(403)
-          .json({ code: 403100, message: "Subject not authorized" });
+        console.log(
+          `${securityString} parsed as security string. With method ${
+            req.method
+          } and params ${JSON.stringify(req.params)}`
+        );
+        return res.status(404).json({
+          code: 404001,
+          message: "This endpoint does not have a valid security expression",
+        });
       }
 
       if (exp === ":") return next();
@@ -55,15 +59,16 @@ const security = (knex, expressSecured) => {
       if (parsedExp.length !== 2) {
         return res
           .status(403)
-          .json({ code: 403200, message: "Bad guard input" });
+          .json({ code: 403206, message: "Bad guard input" });
       }
 
       const user = res.locals.user;
 
       if (!user) {
-        return res
-          .status(403)
-          .json({ code: 403100, message: "Subject not authorized" });
+        return res.status(403).json({
+          code: 403102,
+          message: "Subject not authorized; user could not be parsed",
+        });
       }
 
       const subjectTableToSearch =
@@ -82,7 +87,7 @@ const security = (knex, expressSecured) => {
 
         if (basicUser.revoked === true) {
           return res.status(403).json({
-            code: 403100,
+            code: 403104,
             message: "Client authorization credentials have been revoked",
           });
         }
@@ -93,7 +98,7 @@ const security = (knex, expressSecured) => {
           );
           if (!correctToken) {
             return res.status(403).json({
-              code: 403100,
+              code: 403105,
               message: "Your token has has expired or has been revoked",
             });
           }
@@ -152,12 +157,13 @@ const security = (knex, expressSecured) => {
 
       if (patternIndex !== -1) return next();
 
-      return res
-        .status(403)
-        .json({ code: 403100, message: "Subject not authorized" });
+      return res.status(403).json({
+        code: 403103,
+        message: "Subject not authorized; incorrect permissions",
+      });
     } catch (error) {
       console.log("this.error", error);
-      return res.status(500).json({ code: 500000, message: error.message });
+      return res.status(500).json({ code: 500001, message: error.message });
     }
   };
 
