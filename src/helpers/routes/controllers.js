@@ -851,7 +851,6 @@ const authControllers = (
 
       return res.status(201).json({ code: 200001, message: "User deleted" });
     } catch (error) {
-      console.log(error);
       const error500Json = controller.handleError500(
         500112,
         error,
@@ -973,7 +972,6 @@ const authControllers = (
 
       return res.status(201).json({ code: 200001, message: "User updated" });
     } catch (error) {
-      console.log(error);
       const error500Json = controller.handleError500(
         500115,
         error,

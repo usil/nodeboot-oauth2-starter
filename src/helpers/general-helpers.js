@@ -5,15 +5,10 @@ const generalHelpers = () => {
   helpersObj.joinSearch = (baseSearch, differentiator, ...similarFields) => {
     const newArray = [];
     for (let index = 0; index < baseSearch.length; index++) {
-      if (index === 0) {
-        for (const similarField of similarFields) {
-          const temporalFieldValue = baseSearch[index][similarField];
-          baseSearch[index][similarField] = [temporalFieldValue];
-        }
-        newArray.push(baseSearch[index]);
-      } else if (
+      if (
+        index === 0 ||
         baseSearch[index][differentiator] !==
-        baseSearch[index - 1][differentiator]
+          baseSearch[index - 1][differentiator]
       ) {
         for (const similarField of similarFields) {
           const temporalFieldValue = baseSearch[index][similarField];
@@ -140,9 +135,9 @@ const generalHelpers = () => {
             break;
           case "boolean":
             if (
-              req.body[parameter] !== "true" ||
-              req.body[parameter] !== "false" ||
-              req.body[parameter] !== false ||
+              req.body[parameter] !== "true" &&
+              req.body[parameter] !== "false" &&
+              req.body[parameter] !== false &&
               req.body[parameter] !== true
             ) {
               return helpersObj.handleError400(

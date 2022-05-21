@@ -23,6 +23,50 @@ describe("All general helpers function accordingly", () => {
     expect(joinResult[0].similarField.length).toBe(4);
   });
 
+  test("Parse path no route", () => {
+    const path = generalHelpers.parsePathNoRoute("/");
+    expect(path).toBe("/");
+
+    const pathThree = generalHelpers.parsePathNoRoute("/event/");
+    expect(pathThree).toBe("/event");
+  });
+
+  test("Parse With Route", () => {
+    const path = generalHelpers.parsePathWithRoute("/");
+    expect(path).toBe("");
+
+    const pathThree = generalHelpers.parsePathWithRoute("/event/");
+    expect(pathThree).toBe("/event");
+
+    const pathFour = generalHelpers.parsePathWithRoute("/event");
+    expect(pathFour).toBe("/event");
+  });
+
+  test("Handle error 400, external error", () => {
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+    const mockNext = jest.fn();
+
+    generalHelpers.handleError400(res, mockNext, true, "test", 400000);
+
+    expect(mockNext).toHaveBeenCalled();
+  });
+
+  test("Handle error 400, internal error", () => {
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+    const mockNext = jest.fn();
+
+    generalHelpers.handleError400(res, mockNext, false, "test", 400000, 400);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ code: 400000, message: "test" });
+  });
+
   test("Resource search parsed works", () => {
     const resourceBaseArray = [
       {
@@ -287,22 +331,9 @@ describe("All general helpers function accordingly", () => {
     expect(parsedSearchClient[0].identifier).toBe("user1");
   });
 
-  test("Compare keys works", () => {
-    const testObjectOne = { keyOne: 1, keyTwo: 1 };
-    const testObjectTwo = { keyTwo: 2, keyOne: 2 };
-    const testObjectThree = { keyTwo: 3, keyThree: 3 };
-
-    const result = generalHelpers.compareKeys(testObjectOne, testObjectTwo);
-
-    const secondResult = generalHelpers.compareKeys(
-      testObjectOne,
-      testObjectThree
-    );
-    expect(secondResult).toBe(false);
-    expect(result).toBe(true);
-  });
-
   test("Validate body", () => {
+    generalHelpers.handleError400 = jest.fn();
+
     const mockReq = () => {
       const request = {};
       request.body = { permission: "some" };
@@ -333,11 +364,15 @@ describe("All general helpers function accordingly", () => {
 
     generalHelpers.validateBody(permissionOne).validate(req, res, mockNext);
 
-    expect(mockNext).toHaveBeenCalledTimes(1);
-    expect(res.json).toHaveBeenCalledWith({
-      code: 400000,
-      message: `Invalid body; permission is not an string`,
-    });
+    expect(generalHelpers.handleError400).toHaveBeenCalledTimes(1);
+
+    expect(generalHelpers.handleError400).toHaveBeenCalledWith(
+      res,
+      mockNext,
+      true,
+      `Invalid body; permission is not an string`,
+      400003
+    );
 
     const permissionArray = { permission: { type: "array" } };
 
@@ -349,12 +384,15 @@ describe("All general helpers function accordingly", () => {
 
     generalHelpers.validateBody(permissionArray).validate(req, res, mockNext);
 
-    expect(mockNext).toHaveBeenCalledTimes(2);
+    expect(generalHelpers.handleError400).toHaveBeenCalledTimes(2);
 
-    expect(res.json).toHaveBeenCalledWith({
-      code: 400000,
-      message: `Invalid body; permission is not an array`,
-    });
+    expect(generalHelpers.handleError400).toHaveBeenCalledWith(
+      res,
+      mockNext,
+      true,
+      `Invalid body; permission is not an array`,
+      400002
+    );
 
     const permissionObject = { permission: { type: "object" } };
 
@@ -366,12 +404,15 @@ describe("All general helpers function accordingly", () => {
 
     generalHelpers.validateBody(permissionObject).validate(req, res, mockNext);
 
-    expect(mockNext).toHaveBeenCalledTimes(3);
+    expect(generalHelpers.handleError400).toHaveBeenCalledTimes(3);
 
-    expect(res.json).toHaveBeenCalledWith({
-      code: 400000,
-      message: `Invalid body; permission is not an object`,
-    });
+    expect(generalHelpers.handleError400).toHaveBeenCalledWith(
+      res,
+      mockNext,
+      true,
+      `Invalid body; permission is not an object`,
+      400005
+    );
 
     const permissionNumber = { permission: { type: "number" } };
 
@@ -383,18 +424,41 @@ describe("All general helpers function accordingly", () => {
 
     generalHelpers.validateBody(permissionNumber).validate(req, res, mockNext);
 
-    expect(mockNext).toHaveBeenCalledTimes(4);
+    expect(generalHelpers.handleError400).toHaveBeenCalledTimes(4);
 
-    expect(res.json).toHaveBeenCalledWith({
-      code: 400000,
-      message: `Invalid body; permission is not a number`,
-    });
+    expect(generalHelpers.handleError400).toHaveBeenCalledWith(
+      res,
+      mockNext,
+      true,
+      `Invalid body; permission is not a number`,
+      400004
+    );
+
+    const permissionBoolean = { permission: { type: "boolean" } };
+    req.body.permission = true;
+    generalHelpers.validateBody(permissionBoolean).validate(req, res, mockNext);
+
+    expect(mockNext).toHaveBeenCalledTimes(5);
+
+    req.body.permission = "some";
+
+    generalHelpers.validateBody(permissionBoolean).validate(req, res, mockNext);
+
+    expect(generalHelpers.handleError400).toHaveBeenCalledTimes(5);
+
+    expect(generalHelpers.handleError400).toHaveBeenCalledWith(
+      res,
+      mockNext,
+      true,
+      `Invalid body; permission is not a boolean`,
+      400006
+    );
 
     const permissionDefault = { permission: { type: "default" } };
 
     generalHelpers.validateBody(permissionDefault).validate(req, res, mockNext);
 
-    expect(mockNext).toHaveBeenCalledTimes(5);
+    expect(mockNext).toHaveBeenCalledTimes(6);
 
     const permissionRequired = { required: { type: "string", required: true } };
 
@@ -402,9 +466,14 @@ describe("All general helpers function accordingly", () => {
       .validateBody(permissionRequired)
       .validate(req, res, mockNext);
 
-    expect(res.json).toHaveBeenCalledWith({
-      code: 400000,
-      message: "Invalid body; required is required",
-    });
+    expect(generalHelpers.handleError400).toHaveBeenCalledTimes(6);
+
+    expect(generalHelpers.handleError400).toHaveBeenCalledWith(
+      res,
+      mockNext,
+      true,
+      "Invalid body; required is required",
+      400001
+    );
   });
 });
