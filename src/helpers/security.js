@@ -1,10 +1,11 @@
 const helpers = require("./general-helpers.js");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
+const ErrorForNext = require("./ErrorForNext.js");
 
 const generalHelpers = helpers();
 
-const security = (knex, expressSecured) => {
+const security = (knex, expressSecured, externalErrorHandle = true) => {
   const securityObj = {};
 
   securityObj.getExpression = (path, method, params) => {
@@ -41,13 +42,25 @@ const security = (knex, expressSecured) => {
       );
 
       if (exp === undefined) {
-        console.log(
-          `${securityString} parsed as security string. With method ${
-            req.method
-          } and params ${JSON.stringify(req.params)}`
-        );
+        if (externalErrorHandle) {
+          const nextError = new ErrorForNext(
+            "This endpoint does not have a valid security expression",
+            404
+          )
+            .setErrorCode(404001)
+            .setOnFunction("realGuard")
+            .setOnLibrary("nodeboot-oauth2-starter")
+            .setOnFile("security.js")
+            .setLogMessage(
+              `This endpoint does not have a valid security expression. ${securityString} parsed as security string. With method ${
+                req.method
+              } and params ${JSON.stringify(req.params)}`
+            )
+            .toJson();
+          return next(nextError);
+        }
         return res.status(404).json({
-          code: 404001,
+          errorCode: 404001,
           message: "This endpoint does not have a valid security expression",
         });
       }
@@ -65,9 +78,24 @@ const security = (knex, expressSecured) => {
       const user = res.locals.user;
 
       if (!user) {
+        if (externalErrorHandle) {
+          const nextError = new ErrorForNext(
+            "Subject not authorized; no jwt token was send",
+            403
+          )
+            .setErrorCode(403002)
+            .setOnFunction("realGuard")
+            .setOnLibrary("nodeboot-oauth2-starter")
+            .setOnFile("security.js")
+            .setLogMessage(
+              `Subject not authorized; no jwt token was send. This is likely a problem with the JWT`
+            )
+            .toJson();
+          return next(nextError);
+        }
         return res.status(403).json({
           code: 403102,
-          message: "Subject not authorized; user could not be parsed",
+          message: "Subject not authorized; no jwt token was send",
         });
       }
 
@@ -86,8 +114,23 @@ const security = (knex, expressSecured) => {
         )[0];
 
         if (basicUser.revoked === true) {
+          if (externalErrorHandle) {
+            const nextError = new ErrorForNext(
+              "Client authorization credentials have been revoked",
+              403
+            )
+              .setErrorCode(403003)
+              .setOnFunction("realGuard")
+              .setOnLibrary("nodeboot-oauth2-starter")
+              .setOnFile("security.js")
+              .setLogMessage(
+                `Client authorization credentials have been revoked`
+              )
+              .toJson();
+            return next(nextError);
+          }
           return res.status(403).json({
-            code: 403104,
+            code: 403103,
             message: "Client authorization credentials have been revoked",
           });
         }
@@ -97,9 +140,21 @@ const security = (knex, expressSecured) => {
             basicUser.access_token
           );
           if (!correctToken) {
+            if (externalErrorHandle) {
+              const nextError = new ErrorForNext("Incorrect token", 403)
+                .setErrorCode(403004)
+                .setOnFunction("realGuard")
+                .setOnLibrary("nodeboot-oauth2-starter")
+                .setOnFile("security.js")
+                .setLogMessage(
+                  `Incorrect token. Token was validated but failed the bcrypt comparison`
+                )
+                .toJson();
+              return next(nextError);
+            }
             return res.status(403).json({
-              code: 403105,
-              message: "Your token has has expired or has been revoked",
+              code: 403104,
+              message: "Incorrect token",
             });
           }
         }
@@ -157,12 +212,36 @@ const security = (knex, expressSecured) => {
 
       if (patternIndex !== -1) return next();
 
-      return res.status(403).json({
-        code: 403103,
+      if (externalErrorHandle) {
+        const nextError = new ErrorForNext(
+          "Subject not authorized; incorrect permissions",
+          401
+        )
+          .setErrorCode(401002)
+          .setOnFunction("realGuard")
+          .setOnLibrary("nodeboot-oauth2-starter")
+          .setOnFile("security.js")
+          .setLogMessage(
+            `Subject not authorized; incorrect permissions. Failed at roles and permissions validation`
+          )
+          .toJson();
+        return next(nextError);
+      }
+      return res.status(401).json({
+        code: 401002,
         message: "Subject not authorized; incorrect permissions",
       });
     } catch (error) {
-      console.log("this.error", error);
+      if (externalErrorHandle) {
+        const nextError = new ErrorForNext(error.message, 500)
+          .setErrorCode(500001)
+          .setOnFunction("realGuard")
+          .setOnLibrary("nodeboot-oauth2-starter")
+          .setOnFile("security.js")
+          .setLogMessage(error.message)
+          .toJson();
+        return next(nextError);
+      }
       return res.status(500).json({ code: 500001, message: error.message });
     }
   };
@@ -181,6 +260,18 @@ const security = (knex, expressSecured) => {
         jwt.verify(authToken, jwtSecret, (err, decode) => {
           if (err) {
             res.locals.user = undefined;
+            if (externalErrorHandle) {
+              const nextError = new ErrorForNext("Incorrect token", 401)
+                .setErrorCode(400001)
+                .setOnFunction("decodeToken")
+                .setOnLibrary("nodeboot-oauth2-starter")
+                .setOnFile("security.js")
+                .setLogMessage(
+                  `Incorrect token; token could not be verified by JWT`
+                )
+                .toJson();
+              return next(nextError);
+            }
             return res.status(401).json({
               code: 400001,
               message: "Incorrect token",

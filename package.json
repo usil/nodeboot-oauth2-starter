@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "jest --verbose --collectCoverage --silent && jest-coverage-badges --output badges",
+    "test": "jest controllers.test.js --verbose --collectCoverage   && jest-coverage-badges --output badges",
     "test:badges": "npm test && jest-coverage-badges --output badges"
   },
   "author": "",

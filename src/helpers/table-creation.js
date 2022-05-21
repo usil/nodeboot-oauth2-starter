@@ -9,7 +9,8 @@ const tableCreation = (
   cryptoSecret,
   extraResources = [],
   mainApplicationName = "OAUTH2_main_application",
-  clientIdSuffix = "::client.app"
+  clientIdSuffix = "::client.app",
+  log = console
 ) => {
   const tableCreationObj = {};
 
@@ -224,17 +225,19 @@ const tableCreation = (
 
       return [tableColumnInconsistencies, null];
     } catch (error) {
-      console.log(error);
+      log.error(error);
       return [null, error.message];
     }
   };
 
   tableCreationObj.auditDataBase = async () => {
     try {
+      log.info("Auditing tables");
+
       const falseCount = await tableCreationObj.dataBaseHasTables();
 
       if (falseCount > 0) {
-        console.log("Tables will be created from 0");
+        log.info("Tables will be created from 0");
         await tableCreationObj.createTables();
       } else {
         let reCreate = false;
@@ -253,11 +256,11 @@ const tableCreation = (
 
           if (inconsistencies.length > 0) {
             reCreate = true;
-            console.log(`Table ${tableExpected} inconsistencies in columns:`);
+            log.info(`Table ${tableExpected} inconsistencies in columns:`);
             for (const inconsistency of inconsistencies) {
-              console.log(inconsistency + "/n");
+              log.info(inconsistency + "/n");
             }
-            console.log("Tables will be created from 0");
+            log.info("Tables will be created from 0");
           }
         }
         if (reCreate) {
@@ -265,7 +268,7 @@ const tableCreation = (
         }
       }
     } catch (error) {
-      console.log(error);
+      log.error(error);
       throw new Error(error.message);
     }
   };
@@ -418,9 +421,9 @@ const tableCreation = (
           client_secret: ${clientSecret}`
       );
 
-      console.log("Created file credentials.txt in the cwd");
+      log.info("Created file credentials.txt in the cwd");
     } catch (error) {
-      console.log(error);
+      log.error(error);
       throw new Error(error.message);
     }
   };
@@ -560,7 +563,7 @@ const tableCreation = (
 
       await knex.transaction(tableCreationObj.trxCreate);
     } catch (error) {
-      console.log(error);
+      log.error(error);
       throw new Error(error.message);
     }
   };
@@ -582,6 +585,7 @@ const tableCreation = (
         await knex.schema.dropTableIfExists(tableName);
       }
     } catch (error) {
+      log.error(error);
       throw new Error(error.message);
     }
   };

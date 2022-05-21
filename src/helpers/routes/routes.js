@@ -2,21 +2,9 @@ const authControllers = require("./controllers");
 
 const authSecureRoutes = (
   expressSecured,
-  knex,
   validateBodyMiddleware,
-  jwtSecret,
-  jwtExpirationTime = "24h",
-  cryptoSecret = "key",
-  clientIdSuffix = "::client.app"
+  controller
 ) => {
-  const controller = authControllers(
-    knex,
-    jwtSecret,
-    jwtExpirationTime,
-    cryptoSecret,
-    clientIdSuffix
-  );
-
   // create user
   expressSecured.obPost(
     "/auth/user",
