@@ -116,14 +116,14 @@ const security = (knex, expressSecured, externalErrorHandle = true) => {
         user.subjectType === "user" ? "username" : "identifier";
 
       if (subjectTableToSearch === "OAUTH2_Clients") {
-        const basicUser = (
+        const basicClient = (
           await knex
             .table(subjectTableToSearch)
             .select()
             .where("client_id", user.id)
         )[0];
 
-        if (basicUser.revoked === true) {
+        if (basicClient.revoked === true) {
           if (externalErrorHandle) {
             const nextError = new ErrorForNext(
               "Client authorization credentials have been revoked",
@@ -144,10 +144,10 @@ const security = (knex, expressSecured, externalErrorHandle = true) => {
             message: "Client authorization credentials have been revoked",
           });
         }
-        if (basicUser.access_token !== null) {
+        if (basicClient.access_token !== null) {
           const correctToken = await bcrypt.compare(
             res.locals.access_token,
-            basicUser.access_token
+            basicClient.access_token
           );
           if (!correctToken) {
             if (externalErrorHandle) {
@@ -256,42 +256,62 @@ const security = (knex, expressSecured, externalErrorHandle = true) => {
     }
   };
 
+  securityObj.verify$ = (authToken, jwtSecret) => {
+    return new Promise((resolve, reject) => {
+      jwt.verify(authToken, jwtSecret, (err, decode) => {
+        if (err) {
+          reject(err);
+        }
+        resolve(decode);
+      });
+    });
+  };
+
   securityObj.decodeToken = (jwtSecret) => {
     const decodeObj = {};
-    decodeObj.decode = (req, res, next) => {
+    decodeObj.decode = async (req, res, next) => {
       if (
         (req.headers &&
           req.headers.authorization &&
           req.headers.authorization.split(" ")[0] === "BEARER") ||
         req.query["access_token"]
       ) {
-        const authToken =
-          req.query["access_token"] || req.headers.authorization.split(" ")[1];
-        jwt.verify(authToken, jwtSecret, (err, decode) => {
-          if (err) {
-            res.locals.user = undefined;
-            if (externalErrorHandle) {
-              const nextError = new ErrorForNext("Incorrect token", 401)
-                .setErrorCode(400001)
-                .setOnFunction("decodeToken")
-                .setOnLibrary("nodeboot-oauth2-starter")
-                .setOnFile("security.js")
-                .setLogMessage(
-                  `Incorrect token; token could not be verified by JWT`
-                )
-                .toJson();
-              return next(nextError);
-            }
-            return res.status(401).json({
-              code: 400001,
-              message: "Incorrect token",
-            });
-          } else {
-            res.locals.access_token = authToken;
-            res.locals.user = decode.data;
-          }
+        try {
+          const authToken =
+            req.query["access_token"] ||
+            req.headers.authorization.split(" ")[1];
+          const decode = await securityObj.verify$(authToken, jwtSecret);
+          res.locals.access_token = authToken;
+          res.locals.user = decode.data;
           next();
-        });
+        } catch (err) {
+          res.locals.user = undefined;
+          if (externalErrorHandle) {
+            const nextError = new ErrorForNext(err.message, 401)
+              .setErrorCode(400001)
+              .setOnFunction("decodeToken")
+              .setOnLibrary("nodeboot-oauth2-starter")
+              .setOnFile("security.js")
+              .setLogMessage(`${err.message}`)
+              .toJson();
+            if (err.expiredAt) {
+              nextError.errorCode = 400002;
+              nextError.logMessage += ` expired at ${err.expiredAt}`;
+            }
+            return next(nextError);
+          }
+          const jsonToSend = {
+            code: 400001,
+            message: err.message,
+          };
+
+          if (err.expiredAt) {
+            jsonToSend.code = 400002;
+            jsonToSend.message += ` expired at ${err.expiredAt}`;
+          }
+
+          return res.status(401).json(jsonToSend);
+        }
       } else {
         res.locals.user = undefined;
         next();

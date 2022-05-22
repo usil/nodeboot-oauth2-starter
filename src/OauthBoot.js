@@ -16,6 +16,7 @@ class OauthBoot {
       mainApplicationName: "OAUTH2_main_application",
       clientIdSuffix: "::client.app",
       externalErrorHandle: true,
+      expiresIn: "24h",
     }
   ) {
     this.log = log || console;
@@ -33,7 +34,7 @@ class OauthBoot {
     this.expressSecured = this.bootOauthExpress(expressApp, expressWrapper);
     this.jwtSecret = options.jwtSecret;
     this.extraResources = options.extraResources || [];
-    this.expiresIn = "24h";
+    this.expiresIn = options.expiresIn || "24h";
     this.mainApplicationName =
       options.mainApplicationName || "OAUTH2_main_application";
     this.clientIdSuffix = options.clientIdSuffix || "::client.app";
