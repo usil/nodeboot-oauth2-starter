@@ -34,10 +34,10 @@ class ErrorForNext {
     return this;
   }
 
-  setErrorObject(errorObject = {}) {
-    this.errorObject = errorObject;
-    return this;
-  }
+  // setErrorObject(errorObject = {}) {
+  //   this.errorObject = errorObject;
+  //   return this;
+  // }
 
   toJson() {
     return {

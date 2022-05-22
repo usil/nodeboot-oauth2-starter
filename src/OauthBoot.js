@@ -128,6 +128,7 @@ class OauthBoot {
 
       authSecureRoutes(this.expressSecured, helper.validateBody, controller);
     } catch (error) {
+      console.log(error);
       this.log.error("Error on init", error);
       throw new Error(error.message);
     }

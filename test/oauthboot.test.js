@@ -28,13 +28,17 @@ const expressMock = () => {
 describe("OauthBoot class and his functions work as required", () => {
   beforeAll(() => {});
   test("Correct variable assignation", () => {
-    const oauthBoot = new OauthBoot(
-      expressMock(),
-      mockedKnex,
+    const log = {
+      debug: jest.fn(),
+    };
+    const oauthBoot = new OauthBoot(expressMock(), mockedKnex, log, {
       jwtSecret,
-      "crypto",
-      extraResources
-    );
+      extraResources,
+      cryptoSecret: "crypto",
+      mainApplicationName: "OAUTH2_main_application",
+      clientIdSuffix: "::client.app",
+      externalErrorHandle: true,
+    });
 
     expect(oauthBoot.jwtSecret).toBe("secret");
     expect(oauthBoot.extraResources).toStrictEqual(["extra"]);
@@ -43,33 +47,48 @@ describe("OauthBoot class and his functions work as required", () => {
     expect(oauthBoot.expiresIn).toBe("24h");
   });
   test("Sets token exp time", () => {
-    const oauthBoot = new OauthBoot(
-      expressMock,
-      mockedKnex,
+    const log = {
+      debug: jest.fn(),
+    };
+    const oauthBoot = new OauthBoot(expressMock, mockedKnex, log, {
       jwtSecret,
-      extraResources
-    );
+      extraResources,
+      cryptoSecret: "crypto",
+      mainApplicationName: "OAUTH2_main_application",
+      clientIdSuffix: "::client.app",
+      externalErrorHandle: true,
+    });
     oauthBoot.setTokenExpirationTime("20h");
     expect(oauthBoot.expiresIn).toBe("20h");
   });
   test("Creates boot express at start", () => {
+    const log = {
+      debug: jest.fn(),
+    };
     jest.spyOn(OauthBoot.prototype, "bootOauthExpress");
-    const oauthBoot = new OauthBoot(
-      expressMock(),
-      mockedKnex,
+    const oauthBoot = new OauthBoot(expressMock(), mockedKnex, log, {
       jwtSecret,
-      extraResources
-    );
+      extraResources,
+      cryptoSecret: "crypto",
+      mainApplicationName: "OAUTH2_main_application",
+      clientIdSuffix: "::client.app",
+      externalErrorHandle: true,
+    });
     expect(oauthBoot.bootOauthExpress).toHaveBeenCalledTimes(1);
     jest.restoreAllMocks();
   });
   test("Creates boot express", () => {
-    const oauthBoot = new OauthBoot(
-      expressMock(),
-      mockedKnex,
+    const log = {
+      debug: jest.fn(),
+    };
+    const oauthBoot = new OauthBoot(expressMock(), mockedKnex, log, {
       jwtSecret,
-      extraResources
-    );
+      extraResources,
+      cryptoSecret: "crypto",
+      mainApplicationName: "OAUTH2_main_application",
+      clientIdSuffix: "::client.app",
+      externalErrorHandle: true,
+    });
     const expressWrapper = {
       createSecurePost: jest.fn(),
       createSecureGet: jest.fn(),
@@ -83,12 +102,17 @@ describe("OauthBoot class and his functions work as required", () => {
     expect(expressWrapper.createSecurePut).toHaveBeenCalledTimes(1);
   });
   test("Creates boot express for router", () => {
-    const oauthBoot = new OauthBoot(
-      expressMock(),
-      mockedKnex,
+    const log = {
+      debug: jest.fn(),
+    };
+    const oauthBoot = new OauthBoot(expressMock(), mockedKnex, log, {
       jwtSecret,
-      extraResources
-    );
+      extraResources,
+      cryptoSecret: "crypto",
+      mainApplicationName: "OAUTH2_main_application",
+      clientIdSuffix: "::client.app",
+      externalErrorHandle: true,
+    });
 
     const expressRouter = {};
 
@@ -97,7 +121,16 @@ describe("OauthBoot class and his functions work as required", () => {
     expect(expressRouter.obPost).toBeTruthy();
   });
   test("It does not need extra resources", () => {
-    const oauthBoot = new OauthBoot(expressMock(), mockedKnex, jwtSecret);
+    const log = {
+      debug: jest.fn(),
+    };
+    const oauthBoot = new OauthBoot(expressMock(), mockedKnex, log, {
+      jwtSecret,
+      cryptoSecret: "crypto",
+      mainApplicationName: "OAUTH2_main_application",
+      clientIdSuffix: "::client.app",
+      externalErrorHandle: true,
+    });
     expect(oauthBoot.jwtSecret).toBe("secret");
     expect(oauthBoot.extraResources).toStrictEqual([]);
     expect(oauthBoot.expressApp).toBeTruthy();
@@ -106,22 +139,24 @@ describe("OauthBoot class and his functions work as required", () => {
   });
 
   test("Init works", async () => {
+    const log = {
+      debug: jest.fn(),
+    };
     const mockedKnexSchema = () => {
-      const knex = {
+      return {
         schema: {
           dropTableIfExists: jest.fn(),
           hasTable: jest.fn(),
         },
       };
-
-      return knex;
     };
 
-    const oauthBoot = new OauthBoot(
-      expressMock(),
-      mockedKnexSchema(),
-      jwtSecret
-    );
+    const oauthBoot = new OauthBoot(expressMock(), mockedKnexSchema(), null, {
+      jwtSecret,
+      extraResources,
+      cryptoSecret: "crypto",
+      externalErrorHandle: true,
+    });
 
     oauthBoot.tableCreationHelper.auditDataBase = jest.fn();
     oauthBoot.expressSecured.use = jest.fn();
@@ -132,25 +167,32 @@ describe("OauthBoot class and his functions work as required", () => {
     expect(oauthBoot.tableCreationHelper.auditDataBase).toHaveBeenCalledTimes(
       1
     );
+
+    expect(oauthBoot.mainApplicationName).toBe("OAUTH2_main_application");
+    expect(oauthBoot.clientIdSuffix).toBe("::client.app");
   });
 
   test("Init error works", async () => {
     const mockedKnexSchema = () => {
-      const knex = {
+      return {
         schema: {
           dropTableIfExists: jest.fn(),
           hasTable: jest.fn(),
         },
       };
-
-      return knex;
     };
-
-    const oauthBoot = new OauthBoot(
-      expressMock(),
-      mockedKnexSchema(),
-      jwtSecret
-    );
+    const log = {
+      debug: jest.fn(),
+      error: jest.fn(),
+    };
+    const oauthBoot = new OauthBoot(expressMock(), mockedKnexSchema(), log, {
+      jwtSecret,
+      extraResources,
+      cryptoSecret: "crypto",
+      mainApplicationName: "OAUTH2_main_application",
+      clientIdSuffix: "::client.app",
+      externalErrorHandle: true,
+    });
 
     oauthBoot.tableCreationHelper.auditDataBase = jest
       .fn()
@@ -160,5 +202,10 @@ describe("OauthBoot class and his functions work as required", () => {
     oauthBoot.expressSecured.use = jest.fn();
 
     await expect(oauthBoot.init()).rejects.toThrow();
+
+    expect(log.error).toHaveBeenCalledWith(
+      "Error on init",
+      new Error("Some Error")
+    );
   });
 });
