@@ -78,12 +78,18 @@ describe("Security helper works", () => {
     );
   });
 
-  const oauthBoot = new OauthBoot(
-    expressMock(),
-    mockedKnex,
+  const log = {
+    debug: jest.fn(),
+  };
+
+  const oauthBoot = new OauthBoot(expressMock(), mockedKnex, log, {
     jwtSecret,
-    extraResources
-  );
+    extraResources,
+    cryptoSecret: "secret",
+    mainApplicationName: "OAUTH2_main_application",
+    clientIdSuffix: "::client.app",
+    externalErrorHandle: true,
+  });
 
   oauthBoot.expressSecured.obPost("some-path", "allowed", () => {
     return "allowed";
@@ -136,12 +142,17 @@ describe("Security helper works", () => {
     const res = mockRes();
 
     const securityHelper = security(mockedKnex, oauthBoot.expressSecured);
-    const exp = await securityHelper.realGuard(mockReq(), res, mockNext);
-    expect(exp).toBe(undefined);
-    expect(res.status).toHaveBeenCalledWith(403);
-    expect(res.json).toHaveBeenCalledWith({
-      code: 403100,
-      message: "Subject not authorized",
+    await securityHelper.realGuard(mockReq(), res, mockNext);
+    expect(mockNext).toHaveBeenCalledWith({
+      message: "This endpoint does not have a valid security expression",
+      statusCode: 404,
+      errorCode: 404001,
+      onFunction: "realGuard",
+      onLibrary: "nodeboot-oauth2-starter",
+      onFile: "security.js",
+      originalError: undefined,
+      errorObject: undefined,
+      logMessage: `This endpoint does not have a valid security expression. non-path parsed as security string. With method POST and params {}`,
     });
   });
 
@@ -194,10 +205,15 @@ describe("Security helper works", () => {
 
     await securityHelper.realGuard(mockReq(), res, mockNext);
 
-    expect(res.status).toHaveBeenCalledWith(403);
-
-    expect(res.json).toHaveBeenCalledWith({
-      code: 403200,
+    expect(mockNext).toHaveBeenCalledWith({
+      statusCode: 403,
+      errorCode: 403206,
+      onFunction: "realGuard",
+      onLibrary: "nodeboot-oauth2-starter",
+      onFile: "security.js",
+      originalError: undefined,
+      errorObject: undefined,
+      logMessage: "Bad guard input, received allowed",
       message: "Bad guard input",
     });
   });
@@ -227,11 +243,17 @@ describe("Security helper works", () => {
 
     await securityHelper.realGuard(mockReq(), res, mockNext);
 
-    expect(res.status).toHaveBeenCalledWith(403);
-
-    expect(res.json).toHaveBeenCalledWith({
-      code: 403100,
-      message: "Subject not authorized",
+    expect(mockNext).toHaveBeenCalledWith({
+      statusCode: 403,
+      errorCode: 403002,
+      onFunction: "realGuard",
+      onLibrary: "nodeboot-oauth2-starter",
+      onFile: "security.js",
+      originalError: undefined,
+      errorObject: undefined,
+      logMessage:
+        "Subject not authorized; no jwt token was send. This is likely a problem with the JWT",
+      message: "Subject not authorized; no jwt token was send",
     });
   });
 

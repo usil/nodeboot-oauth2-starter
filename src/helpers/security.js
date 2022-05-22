@@ -70,6 +70,16 @@ const security = (knex, expressSecured, externalErrorHandle = true) => {
       const parsedExp = exp.split(":");
 
       if (parsedExp.length !== 2) {
+        if (externalErrorHandle) {
+          const nextError = new ErrorForNext("Bad guard input", 403)
+            .setErrorCode(403206)
+            .setOnFunction("realGuard")
+            .setOnLibrary("nodeboot-oauth2-starter")
+            .setOnFile("security.js")
+            .setLogMessage(`Bad guard input, received ${exp}`)
+            .toJson();
+          return next(nextError);
+        }
         return res
           .status(403)
           .json({ code: 403206, message: "Bad guard input" });
