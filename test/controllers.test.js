@@ -4119,7 +4119,8 @@ describe("All auth controllers work", () => {
     const knexMock = {
       table: jest.fn().mockReturnThis(),
       update: jest.fn().mockReturnThis(),
-      where: jest.fn().mockResolvedValue("some"),
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockResolvedValue([{ client_id: 1 }]),
     };
 
     const controllers = authControllers(knexMock, "secret");
@@ -4131,6 +4132,7 @@ describe("All auth controllers work", () => {
     expect(knexMock.table).toHaveBeenCalledWith("OAUTH2_Clients");
     expect(knexMock.update).toHaveBeenCalled();
     expect(knexMock.where).toHaveBeenCalledWith("OAUTH2_Clients.id", "=", 1);
+    expect(knexMock.where).toHaveBeenCalledWith("id", 1);
     bcryptSpy.mockRestore();
   });
 

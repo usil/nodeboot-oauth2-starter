@@ -1911,10 +1911,25 @@ const authControllers = (
         });
       }
 
+      const client = await knex
+        .table("OAUTH2_Clients")
+        .select()
+        .where("id", id);
+
+      if (client && client.length === 0) {
+        const errorJson = controller.handleError(
+          "Client does not exist",
+          404008,
+          404,
+          "generateLongLive"
+        );
+        return controller.callNextOrResOnError(res, next, errorJson, 404);
+      }
+
       const access_token = jwt.sign(
         {
           data: {
-            id: id,
+            id: client[0].client_id,
             subjectType: "client",
             identifier: identifier.toLowerCase(),
           },
