@@ -180,7 +180,7 @@ const authControllers = (
         access_token = jwt.sign(
           {
             data: {
-              id: result[0],
+              id: clientStringId,
               subjectType: "client",
               identifier: identifier.toLowerCase(),
             },
