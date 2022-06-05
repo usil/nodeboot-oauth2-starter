@@ -413,12 +413,7 @@ const tableCreation = (
 
       await fs.writeFile(
         path.join(process.cwd(), "/credentials.txt"),
-        `Credentials for the admin user in it.\n
-          Username: admin \n   
-          Password: ${password}
-          Credentials for the admin client.\n
-          client_id: ${clientStringId} \n
-          client_secret: ${clientSecret}`
+        `User:\nadmin\nPassword:\n${password}\nclientid:\n${clientStringId}\nclientsecret:\n${clientSecret}`
       );
 
       log.info("Created file credentials.txt in the cwd");
