@@ -20,7 +20,12 @@ class OauthBoot {
     }
   ) {
     this.log = log || console;
-    this.log.debug("Oauth2 options", options);
+
+    let safeOptionsToLog = JSON.parse(JSON.stringify(options))
+    safeOptionsToLog.jwtSecret = "***";
+    safeOptionsToLog.cryptoSecret = "***";
+
+    this.log.debug("Oauth2 options", safeOptionsToLog);
     this.externalErrorHandle = options.externalErrorHandle;
     this.cryptoSecret = options.cryptoSecret;
     this.expressApp = expressApp;
