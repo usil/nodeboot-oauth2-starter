@@ -3,6 +3,7 @@ const path = require("path");
 const randomstring = require("randomstring");
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
+const os = require("os");
 
 const tableCreation = (
   knex,
@@ -412,11 +413,11 @@ const tableCreation = (
       });
 
       await fs.writeFile(
-        path.join(process.cwd(), "/credentials.txt"),
+        path.join(os.tmpdir(), "credentials.txt"),
         `User:\nadmin\nPassword:\n${password}\nclientid:\n${clientStringId}\nclientsecret:\n${clientSecret}`
       );
 
-      log.info("Created file credentials.txt in the cwd");
+      log.info("Created file credentials.txt in the temp folder");
     } catch (error) {
       log.error(error);
       throw new Error(error.message);
