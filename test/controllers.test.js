@@ -1711,7 +1711,8 @@ describe("All auth controllers work", () => {
       knex.table = jest.fn().mockReturnValue(knex);
       knex.count = jest.fn().mockResolvedValue([{ "count(*)": 2 }]);
       knex.join = jest.fn().mockImplementation((some) => {
-        knex.where = jest.fn().mockRejectedValueOnce(new Error("Async error"));
+        // knex.where = jest.fn().mockRejectedValueOnce(new Error("Async error"));
+        knex.where = jest.fn().mockImplementation(() => new Promise.reject("Async error"));
         return knex;
       });
       return knex;

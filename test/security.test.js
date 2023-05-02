@@ -717,8 +717,8 @@ describe("Security helper works", () => {
       onFile: "security.js",
       originalError: undefined,
       errorObject: undefined,
-      logMessage: "Cannot read property 'user' of undefined",
-      message: "Cannot read property 'user' of undefined",
+      logMessage: "Cannot read properties of undefined (reading 'user')",
+      message: "Cannot read properties of undefined (reading 'user')",
     });
 
     const securityHelperNoExternal = security(
@@ -732,7 +732,7 @@ describe("Security helper works", () => {
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({
       code: 500001,
-      message: "Cannot read property 'user' of undefined",
+      message: "Cannot read properties of undefined (reading 'user')",
     });
   });
 

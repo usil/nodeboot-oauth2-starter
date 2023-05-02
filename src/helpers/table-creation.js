@@ -196,6 +196,7 @@ const tableCreation = (
     let falseCount = 0;
 
     for (const tableExpected in tableCreationObj.tablesExpected) {
+      //verify if tables exist
       const result = await knex.schema.hasTable(tableExpected);
       if (result === false) {
         falseCount++;
@@ -235,6 +236,7 @@ const tableCreation = (
     try {
       log.info("Auditing tables");
 
+      //verify if has tables expected
       const falseCount = await tableCreationObj.dataBaseHasTables();
 
       if (falseCount > 0) {
@@ -397,6 +399,7 @@ const tableCreation = (
       let encryptedData = cipher.update(clientSecret, "utf-8", "hex");
       encryptedData += cipher.final("hex");
 
+      //CREATE USER;
       await trx.table("OAUTH2_Users").insert({
         username: "admin",
         password: encryptedPassword,
