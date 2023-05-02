@@ -5,6 +5,141 @@ const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 
 describe("All auth controllers work", () => {
+  test("Handle error", () => {
+    const knex = {};
+
+    const controllers = authControllers(knex, "secret");
+
+    const errorOne = controllers.handleError("error", 500000, 500, "test");
+
+    expect(errorOne.onLibrary).toBe("nodeboot-oauth2-starter");
+    expect(errorOne.onFile).toBe("controller.js");
+    expect(errorOne.onFunction).toBe("test");
+    expect(errorOne.statusCode).toBe(500);
+    expect(errorOne.errorCode).toBe(500000);
+
+    const controllersNoExternal = authControllers(
+      knex,
+      "secret",
+      "24h",
+      "key",
+      "::client.app",
+      false
+    );
+
+    const errorTwo = controllersNoExternal.handleError(
+      "error",
+      500000,
+      500,
+      "test"
+    );
+
+    expect(errorTwo.message).toBe("error");
+    expect(errorTwo.code).toBe(500000);
+  });
+
+  test("Handle error 500", () => {
+    const knex = {};
+
+    const testError = new Error("test");
+
+    const controllers = authControllers(knex, "secret");
+
+    const errorOne = controllers.handleError500(500000, testError, "test");
+
+    expect(errorOne.onLibrary).toBe("nodeboot-oauth2-starter");
+    expect(errorOne.onFile).toBe("controller.js");
+    expect(errorOne.onFunction).toBe("test");
+    expect(errorOne.statusCode).toBe(500);
+    expect(errorOne.errorCode).toBe(500000);
+
+    const controllersNoExternal = authControllers(
+      knex,
+      "secret",
+      "24h",
+      "key",
+      "::client.app",
+      false
+    );
+
+    const errorTwo = controllersNoExternal.handleError500(
+      500000,
+      testError,
+      "test"
+    );
+
+    expect(errorTwo.message).toBe("test");
+    expect(errorTwo.code).toBe(500000);
+  });
+
+  test("Handle error 409", () => {
+    const knex = {};
+
+    const controllers = authControllers(knex, "secret");
+
+    const errorOne = controllers.handleNotUniqueError409(
+      "test",
+      400000,
+      "test"
+    );
+
+    expect(errorOne.onLibrary).toBe("nodeboot-oauth2-starter");
+    expect(errorOne.onFile).toBe("controller.js");
+    expect(errorOne.onFunction).toBe("test");
+    expect(errorOne.statusCode).toBe(409);
+    expect(errorOne.errorCode).toBe(400000);
+
+    const controllersNoExternal = authControllers(
+      knex,
+      "secret",
+      "24h",
+      "key",
+      "::client.app",
+      false
+    );
+
+    const errorTwo = controllersNoExternal.handleNotUniqueError409(
+      "test",
+      400000,
+      "test"
+    );
+
+    expect(errorTwo.message).toBe(`That test is already on use`);
+    expect(errorTwo.code).toBe(400000);
+  });
+
+  test("Call next or res", () => {
+    const knex = {};
+
+    const controllers = authControllers(knex, "secret");
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+    const next = jest.fn();
+
+    const jsonCall = { message: "ok" };
+
+    controllers.callNextOrResOnError(res, next, jsonCall);
+
+    expect(next).toHaveBeenCalledWith(jsonCall);
+
+    const controllersNoExternal = authControllers(
+      knex,
+      "secret",
+      "24h",
+      "key",
+      "::client.app",
+      false
+    );
+
+    controllersNoExternal.callNextOrResOnError(res, next, jsonCall, 400);
+
+    expect(res.json).toHaveBeenCalledWith(jsonCall);
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
   test("Creates the user in a transaction", async () => {
     const reqBody = {
       username: "username",
@@ -61,6 +196,7 @@ describe("All auth controllers work", () => {
     const mockedReq = {
       body: {
         password: "pass",
+        username: "LUIS",
       },
     };
 
@@ -70,18 +206,70 @@ describe("All auth controllers work", () => {
     };
 
     const knexMock = {
+      table: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnValue([]),
       transaction: jest.fn(),
     };
 
+    const mockNext = jest.fn();
+
     const controllers = authControllers(knexMock, "secret");
 
-    await controllers.createUser(mockedReq, mockRes);
+    controllers.createUserTransaction = jest.fn().mockReturnValue(1);
+
+    await controllers.createUser(mockedReq, mockRes, mockNext);
 
     expect(bcryptSpy).toHaveBeenCalled();
+    expect(knexMock.table).toHaveBeenCalledWith("OAUTH2_Users");
+    expect(knexMock.select).toHaveBeenCalled();
+    expect(knexMock.where).toHaveBeenCalledWith("username", "luis");
     expect(mockRes.status).toHaveBeenCalledWith(201);
+    expect(mockRes.json).toHaveBeenCalledWith({
+      code: 200001,
+      message: "User added",
+      content: { userId: -1 },
+    });
     expect(knexMock.transaction).toHaveBeenCalled();
 
     bcryptSpy.mockRestore();
+  });
+
+  test("Create user, duplicated", async () => {
+    const mockedReq = {
+      body: {
+        password: "pass",
+        username: "LUIS",
+      },
+    };
+
+    const mockRes = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knexMock = {
+      table: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnValue([{ username: "luis" }]),
+      transaction: jest.fn(),
+    };
+
+    const mockNext = jest.fn();
+
+    const controllers = authControllers(knexMock, "secret");
+
+    controllers.handleNotUniqueError409 = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
+
+    await controllers.createUser(mockedReq, mockRes, mockNext);
+
+    expect(controllers.handleNotUniqueError409).toHaveBeenCalledWith(
+      "username",
+      409101,
+      "createUser"
+    );
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
   });
 
   test("Create user errors", async () => {
@@ -104,11 +292,19 @@ describe("All auth controllers work", () => {
       transaction: jest.fn().mockRejectedValueOnce(new Error("Async error")),
     };
 
+    const nextMock = jest.fn();
+
     const controllers = authControllers(knexMock, "secret");
 
-    await controllers.createUser(mockedReq, mockRes);
+    controllers.handleError500 = jest.fn();
 
-    expect(mockRes.status).toHaveBeenCalledWith(500);
+    controllers.callNextOrResOnError = jest.fn();
+
+    await controllers.createUser(mockedReq, mockRes, nextMock);
+
+    expect(controllers.handleError500).toHaveBeenCalled();
+
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
 
     bcryptSpy.mockRestore();
   });
@@ -208,15 +404,62 @@ describe("All auth controllers work", () => {
     };
 
     const knexMock = {
+      table: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnValue([]),
       transaction: jest.fn(),
     };
 
+    const nextMock = jest.fn();
+
     const controllers = authControllers(knexMock, "secret");
 
-    await controllers.createClient(mockedReq, mockRes);
+    await controllers.createClient(mockedReq, mockRes, nextMock);
 
     expect(mockRes.status).toHaveBeenCalledWith(201);
     expect(knexMock.transaction).toHaveBeenCalled();
+    expect(knexMock.table).toHaveBeenCalledWith("OAUTH2_Clients");
+    expect(knexMock.select).toHaveBeenCalled();
+    expect(knexMock.where).toHaveBeenCalledWith("identifier", "pass");
+  });
+
+  test("Create client, duplicated", async () => {
+    const mockedReq = {
+      body: {
+        identifier: "pass",
+      },
+      query: {
+        longLive: true,
+      },
+    };
+
+    const mockRes = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knexMock = {
+      table: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnValue([{ id: 1 }]),
+      transaction: jest.fn(),
+    };
+
+    const nextMock = jest.fn();
+
+    const controllers = authControllers(knexMock, "secret");
+
+    controllers.handleNotUniqueError409 = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
+
+    await controllers.createClient(mockedReq, mockRes, nextMock);
+
+    expect(controllers.handleNotUniqueError409).toHaveBeenCalledWith(
+      "identifier",
+      409102,
+      "createClient"
+    );
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
   });
 
   test("Create client error", async () => {
@@ -236,14 +479,25 @@ describe("All auth controllers work", () => {
     };
 
     const knexMock = {
+      table: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnValue([]),
       transaction: jest.fn().mockRejectedValueOnce(new Error("Async error")),
     };
 
+    const nextMock = jest.fn();
+
     const controllers = authControllers(knexMock, "secret");
 
-    await controllers.createClient(mockedReq, mockRes);
+    controllers.handleError500 = jest.fn();
 
-    expect(mockRes.status).toHaveBeenCalledWith(500);
+    controllers.callNextOrResOnError = jest.fn();
+
+    await controllers.createClient(mockedReq, mockRes, nextMock);
+
+    expect(controllers.handleError500).toHaveBeenCalled();
+
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
 
     bcryptSpy.mockRestore();
   });
@@ -303,16 +557,63 @@ describe("All auth controllers work", () => {
     };
 
     const knexMock = {
+      table: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnValue([]),
       transaction: jest.fn(),
     };
 
+    const nextMock = jest.fn();
+
     const controllers = authControllers(knexMock, "secret");
 
-    await controllers.createRole(mockedReq, mockRes);
+    await controllers.createRole(mockedReq, mockRes, nextMock);
 
     expect(mockRes.status).toHaveBeenCalledWith(201);
-    expect(mockRes.json).toHaveBeenCalled();
-    expect(knexMock.transaction).toHaveBeenCalled();
+    expect(mockRes.json).toHaveBeenCalledWith({
+      code: 200001,
+      message: "Role added",
+      content: { roleId: -1 },
+    });
+    expect(knexMock.table).toHaveBeenCalledWith("OAUTH2_Roles");
+    expect(knexMock.select).toHaveBeenCalled();
+    expect(knexMock.where).toHaveBeenCalledWith("identifier", "identifier");
+  });
+
+  test("Create role, duplicated", async () => {
+    const mockedReq = {
+      body: {
+        identifier: "identifier",
+      },
+    };
+
+    const mockRes = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knexMock = {
+      table: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnValue([{ id: 1 }]),
+      transaction: jest.fn(),
+    };
+
+    const nextMock = jest.fn();
+
+    const controllers = authControllers(knexMock, "secret");
+
+    controllers.handleNotUniqueError409 = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
+
+    await controllers.createRole(mockedReq, mockRes, nextMock);
+
+    expect(controllers.handleNotUniqueError409).toHaveBeenCalledWith(
+      "identifier",
+      409103,
+      "createRole"
+    );
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
   });
 
   test("Create role error", async () => {
@@ -328,15 +629,24 @@ describe("All auth controllers work", () => {
     };
 
     const knexMock = {
+      table: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnValue([]),
       transaction: jest.fn().mockRejectedValueOnce(new Error("Async error")),
     };
 
+    const nextMock = jest.fn();
+
     const controllers = authControllers(knexMock, "secret");
 
-    await controllers.createRole(mockedReq, mockRes);
+    controllers.handleError500 = jest.fn();
 
-    expect(mockRes.status).toHaveBeenCalledWith(500);
-    expect(mockRes.json).toHaveBeenCalled();
+    controllers.callNextOrResOnError = jest.fn();
+
+    await controllers.createRole(mockedReq, mockRes, nextMock);
+
+    expect(controllers.handleError500).toHaveBeenCalled();
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
   });
 
   test("Create application", async () => {
@@ -353,16 +663,62 @@ describe("All auth controllers work", () => {
 
     const knexMock = {
       table: jest.fn().mockReturnThis(),
-      insert: jest.fn(),
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnValue([]),
+      insert: jest.fn().mockReturnValue([1]),
     };
+
+    const nextMock = jest.fn();
 
     const controllers = authControllers(knexMock, "secret");
 
-    await controllers.createApplication(mockedReq, mockRes);
+    await controllers.createApplication(mockedReq, mockRes, nextMock);
 
     expect(mockRes.status).toHaveBeenCalledWith(201);
-    expect(mockRes.json).toHaveBeenCalled();
+    expect(mockRes.json).toHaveBeenCalledWith({
+      code: 200001,
+      message: "Application added",
+      content: { applicationId: 1 },
+    });
     expect(knexMock.table).toHaveBeenCalledWith("OAUTH2_Applications");
+    expect(knexMock.select).toHaveBeenCalled();
+    expect(knexMock.where).toHaveBeenCalledWith("identifier", "identifier");
+  });
+
+  test("Create application, duplicated", async () => {
+    const mockedReq = {
+      body: {
+        identifier: "identifier",
+      },
+    };
+
+    const mockRes = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knexMock = {
+      table: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnValue([{ id: 1 }]),
+      insert: jest.fn().mockReturnValue([1]),
+    };
+
+    const nextMock = jest.fn();
+
+    const controllers = authControllers(knexMock, "secret");
+
+    controllers.handleNotUniqueError409 = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
+
+    await controllers.createApplication(mockedReq, mockRes, nextMock);
+
+    expect(controllers.handleNotUniqueError409).toHaveBeenCalledWith(
+      "identifier",
+      409104,
+      "createApplication"
+    );
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
   });
 
   test("Create application error", async () => {
@@ -379,14 +735,23 @@ describe("All auth controllers work", () => {
 
     const knexMock = {
       table: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnValue([]),
       insert: jest.fn().mockRejectedValueOnce(new Error("Async error")),
     };
 
+    const nextMock = jest.fn();
+
     const controllers = authControllers(knexMock, "secret");
 
-    await controllers.createApplication(mockedReq, mockRes);
+    controllers.handleError500 = jest.fn();
 
-    expect(mockRes.status).toHaveBeenCalledWith(500);
+    controllers.callNextOrResOnError = jest.fn();
+
+    await controllers.createApplication(mockedReq, mockRes, nextMock);
+
+    expect(controllers.handleError500).toHaveBeenCalled();
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
   });
 
   test("Create application resource", async () => {
@@ -404,7 +769,7 @@ describe("All auth controllers work", () => {
 
     const knexMock = {
       table: jest.fn().mockReturnThis(),
-      insert: jest.fn(),
+      insert: jest.fn().mockReturnValue([1]),
     };
 
     const controllers = authControllers(knexMock, "secret");
@@ -436,9 +801,14 @@ describe("All auth controllers work", () => {
 
     const controllers = authControllers(knexMock, "secret");
 
-    await controllers.createApplicationResource(mockedReq, mockRes);
+    controllers.handleError500 = jest.fn();
 
-    expect(mockRes.status).toHaveBeenCalledWith(500);
+    controllers.callNextOrResOnError = jest.fn();
+
+    await controllers.createApplicationResource(mockedReq, mockRes, jest.fn());
+
+    expect(controllers.handleError500).toHaveBeenCalled();
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
   });
 
   test("Create permission", async () => {
@@ -456,7 +826,7 @@ describe("All auth controllers work", () => {
 
     const knexMock = {
       table: jest.fn().mockReturnThis(),
-      insert: jest.fn(),
+      insert: jest.fn().mockReturnValue([1]),
     };
 
     const controllers = authControllers(knexMock, "secret");
@@ -488,9 +858,14 @@ describe("All auth controllers work", () => {
 
     const controllers = authControllers(knexMock, "secret");
 
-    await controllers.createPermission(mockedReq, mockRes);
+    controllers.handleError500 = jest.fn();
 
-    expect(mockRes.status).toHaveBeenCalledWith(500);
+    controllers.callNextOrResOnError = jest.fn();
+
+    await controllers.createPermission(mockedReq, mockRes, jest.fn());
+
+    expect(controllers.handleError500).toHaveBeenCalled();
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
   });
 
   test("Get users", async () => {
@@ -761,9 +1136,14 @@ describe("All auth controllers work", () => {
 
     const controllers = authControllers(knexMock, "secret");
 
-    await controllers.getUsers(mockedReq, mockRes);
+    controllers.handleError500 = jest.fn();
 
-    expect(mockRes.status).toHaveBeenCalledWith(500);
+    controllers.callNextOrResOnError = jest.fn();
+
+    await controllers.getUsers(mockedReq, mockRes, jest.fn());
+
+    expect(controllers.handleError500).toHaveBeenCalled();
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
   });
 
   test("Get one user by id", async () => {
@@ -901,14 +1281,48 @@ describe("All auth controllers work", () => {
 
     const controllers = authControllers(mockKnex, "secret");
 
+    controllers.handleError = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
+
+    await controllers.getUser(mockedReq, mockRes, jest.fn());
+
+    expect(controllers.handleError).toHaveBeenCalled();
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
+  });
+
+  test("Get one user by id, user does not exist", async () => {
+    const mockedReq = {
+      params: {
+        id: 1,
+      },
+    };
+
+    const mockRes = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const mockKnex = {
+      table: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      join: jest.fn().mockReturnThis(),
+      where: jest.fn().mockResolvedValue([]),
+    };
+
+    const controllers = authControllers(mockKnex, "secret");
+
+    controllers.handleError = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
+
     await controllers.getUser(mockedReq, mockRes);
 
-    expect(mockRes.json).toHaveBeenCalledWith({
-      code: 400000,
-      message: "Invalid user id",
-    });
-
-    expect(mockRes.status).toHaveBeenCalledWith(400);
+    expect(controllers.handleError).toHaveBeenLastCalledWith(
+      "User does not exist",
+      404002,
+      404,
+      "getUser"
+    );
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
   });
 
   test("Get one user by id fails", async () => {
@@ -932,9 +1346,13 @@ describe("All auth controllers work", () => {
 
     const controllers = authControllers(mockKnex, "secret");
 
-    await controllers.getUser(mockedReq, mockRes);
+    controllers.handleError500 = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
 
-    expect(mockRes.status).toHaveBeenCalledWith(500);
+    await controllers.getUser(mockedReq, mockRes, jest.fn());
+
+    expect(controllers.handleError500).toHaveBeenCalled();
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
   });
 
   test("Get me user", async () => {
@@ -1030,84 +1448,6 @@ describe("All auth controllers work", () => {
     expect(mockRes.status).toHaveBeenCalledWith(200);
   });
 
-  test("Get me user no local user", async () => {
-    const userBaseArray = [
-      {
-        id: 1,
-        subjectId: 1,
-        name: "name1",
-        username: "user1",
-        roleDeleted: false,
-        roleId: 1,
-        roleIdentifier: "rol1",
-        resourceId: 1,
-        applicationResource: "resource1",
-        allowed: "*",
-      },
-      {
-        id: 1,
-        subjectId: 1,
-        name: "name1",
-        username: "user1",
-        roleDeleted: false,
-        roleId: 1,
-        roleIdentifier: "rol1",
-        resourceId: 1,
-        applicationResource: "resource1",
-        allowed: "select",
-      },
-      {
-        id: 1,
-        subjectId: 1,
-        name: "name1",
-        username: "user1",
-        roleDeleted: false,
-        roleId: 2,
-        roleIdentifier: "rol2",
-        resourceId: 3,
-        applicationResource: "resource3",
-        allowed: "select",
-      },
-      {
-        id: 1,
-        subjectId: 1,
-        name: "name1",
-        username: "user1",
-        roleDeleted: false,
-        roleId: 2,
-        roleIdentifier: "rol2",
-        resourceId: 4,
-        applicationResource: "resource4",
-        allowed: "*",
-      },
-    ];
-
-    const mockedReq = {};
-
-    const mockRes = {
-      locals: {},
-      status: jest.fn().mockReturnThis(),
-      json: jest.fn(),
-    };
-
-    const mockKnex = {
-      table: jest.fn().mockReturnThis(),
-      select: jest.fn().mockReturnThis(),
-      join: jest.fn().mockReturnThis(),
-      where: jest.fn().mockResolvedValue(userBaseArray),
-    };
-
-    const controllers = authControllers(mockKnex, "secret");
-    await controllers.getMe(mockedReq, mockRes);
-
-    expect(mockRes.status).toHaveBeenCalledWith(403);
-
-    expect(mockRes.json).toHaveBeenCalledWith({
-      code: 400301,
-      message: "Forbidden user",
-    });
-  });
-
   test("Get me user incorrect type", async () => {
     const userBaseArray = [
       {
@@ -1182,13 +1522,19 @@ describe("All auth controllers work", () => {
     };
 
     const controllers = authControllers(mockKnex, "secret");
-    await controllers.getMe(mockedReq, mockRes);
 
-    expect(mockRes.status).toHaveBeenCalledWith(400);
-    expect(mockRes.json).toHaveBeenCalledWith({
-      code: 400001,
-      message: "Invalid subject user",
-    });
+    controllers.handleError = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
+
+    await controllers.getMe(mockedReq, mockRes, jest.fn());
+
+    expect(controllers.handleError).toHaveBeenCalledWith(
+      `Invalid subject type client`,
+      400003,
+      400,
+      "getMe"
+    );
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
   });
 
   test("Get me user fails", async () => {
@@ -1214,9 +1560,14 @@ describe("All auth controllers work", () => {
     };
 
     const controllers = authControllers(mockKnex, "secret");
-    await controllers.getMe(mockedReq, mockRes);
 
-    expect(mockRes.status).toHaveBeenCalledWith(500);
+    controllers.handleError500 = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
+
+    await controllers.getMe(mockedReq, mockRes, jest.fn());
+
+    expect(controllers.handleError500).toHaveBeenCalled();
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
   });
 
   test("Get clients", async () => {
@@ -1368,9 +1719,13 @@ describe("All auth controllers work", () => {
 
     const controllers = authControllers(knexMock, "secret");
 
-    await controllers.getClients(mockedReq, mockRes);
+    controllers.handleError500 = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
 
-    expect(mockRes.status).toHaveBeenCalledWith(500);
+    await controllers.getClients(mockedReq, mockRes, jest.fn());
+
+    expect(controllers.handleError500).toHaveBeenCalled();
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
   });
 
   test("Get clients not query", async () => {
@@ -1515,6 +1870,9 @@ describe("All auth controllers work", () => {
 
   test("Delete user", async () => {
     const knex = {
+      table: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnValue([{ id: 1 }]),
       transaction: jest.fn(),
     };
 
@@ -1536,6 +1894,47 @@ describe("All auth controllers work", () => {
     expect(knex.transaction).toHaveBeenCalled();
 
     expect(res.status).toHaveBeenCalledWith(201);
+
+    expect(res.json).toHaveBeenCalledWith({
+      code: 200001,
+      message: "User deleted",
+    });
+  });
+
+  test("Delete user, does not exists", async () => {
+    const knex = {
+      table: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnValue([]),
+      transaction: jest.fn(),
+    };
+
+    const req = {
+      params: {
+        subjectId: 1,
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const controllers = authControllers(knex, "secret");
+
+    controllers.handleError = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
+
+    await controllers.deleteUser(req, res);
+
+    expect(controllers.handleError).toHaveBeenCalledWith(
+      "User does not exist",
+      404002,
+      404,
+      "deleteUser"
+    );
+
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
   });
 
   test("Delete user fails", async () => {
@@ -1554,11 +1953,15 @@ describe("All auth controllers work", () => {
       json: jest.fn(),
     };
 
-    const controllers = authControllers(knex, "secret");
+    const controllers = authControllers(knex, "secret", jest.fn());
+
+    controllers.handleError500 = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
 
     await controllers.deleteUser(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(500);
+    expect(controllers.handleError500).toHaveBeenCalled();
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
   });
 
   test("Delete client transaction", async () => {
@@ -1590,6 +1993,9 @@ describe("All auth controllers work", () => {
 
   test("Delete client", async () => {
     const knex = {
+      table: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnValue([{ id: 1 }]),
       transaction: jest.fn(),
     };
 
@@ -1611,6 +2017,45 @@ describe("All auth controllers work", () => {
     expect(knex.transaction).toHaveBeenCalled();
 
     expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.json).toHaveBeenCalledWith({
+      code: 200001,
+      message: "Client deleted",
+    });
+  });
+
+  test("Delete client, does not exist", async () => {
+    const knex = {
+      table: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnValue([]),
+      transaction: jest.fn(),
+    };
+
+    const req = {
+      params: {
+        subjectId: 1,
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const controllers = authControllers(knex, "secret");
+
+    controllers.handleError = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
+
+    await controllers.deleteClient(req, res);
+
+    expect(controllers.handleError).toHaveBeenCalledWith(
+      "Client does not exist",
+      404003,
+      404,
+      "deleteClient"
+    );
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
   });
 
   test("Delete client fails", async () => {
@@ -1630,10 +2075,12 @@ describe("All auth controllers work", () => {
     };
 
     const controllers = authControllers(knex, "secret");
-
+    controllers.handleError500 = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
     await controllers.deleteClient(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(500);
+    expect(controllers.handleError500).toHaveBeenCalled();
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
   });
 
   test("Delete role", async () => {
@@ -1648,10 +2095,17 @@ describe("All auth controllers work", () => {
       json: jest.fn(),
     };
 
+    const updateFunction = jest.fn().mockResolvedValue([1]);
+
     const knex = {
       table: jest.fn().mockReturnThis(),
-      where: jest.fn().mockReturnThis(),
-      update: jest.fn().mockResolvedValue([1]),
+      select: jest.fn().mockReturnThis(),
+      where: jest
+        .fn()
+        .mockReturnValueOnce([{ id: 1 }])
+        .mockReturnValueOnce({
+          update: updateFunction,
+        }),
     };
 
     const controllers = authControllers(knex, "secret");
@@ -1660,9 +2114,48 @@ describe("All auth controllers work", () => {
 
     expect(knex.table).toHaveBeenCalledWith("OAUTH2_Roles");
     expect(knex.where).toHaveBeenCalledWith({ id: 1 });
-    expect(knex.update).toHaveBeenCalledWith("deleted", true);
+    expect(updateFunction).toHaveBeenCalledWith("deleted", true);
 
     expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.json).toHaveBeenCalledWith({
+      code: 200001,
+      message: "Role deleted",
+    });
+  });
+
+  test("Delete role, does not exist", async () => {
+    const req = {
+      params: {
+        id: 1,
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knex = {
+      table: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnValue([]),
+      update: jest.fn().mockResolvedValue([1]),
+    };
+
+    const controllers = authControllers(knex, "secret");
+
+    controllers.handleError = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
+
+    await controllers.deleteRole(req, res);
+
+    expect(controllers.handleError).toHaveBeenCalledWith(
+      "Role does not exist",
+      404004,
+      404,
+      "deleteRole"
+    );
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
   });
 
   test("Delete role fails", async () => {
@@ -1684,10 +2177,12 @@ describe("All auth controllers work", () => {
     };
 
     const controllers = authControllers(knex, "secret");
-
+    controllers.handleError500 = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
     await controllers.deleteRole(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(500);
+    expect(controllers.handleError500).toHaveBeenCalled();
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
   });
 
   test("Update user", async () => {
@@ -1705,10 +2200,17 @@ describe("All auth controllers work", () => {
       json: jest.fn(),
     };
 
+    const updateFunction = jest.fn().mockResolvedValue([1]);
+
     const knex = {
       table: jest.fn().mockReturnThis(),
-      where: jest.fn().mockReturnThis(),
-      update: jest.fn().mockResolvedValue([1]),
+      select: jest.fn().mockReturnThis(),
+      where: jest
+        .fn()
+        .mockReturnValueOnce([{ id: 1 }])
+        .mockReturnValueOnce({
+          update: updateFunction,
+        }),
     };
 
     const controllers = authControllers(knex, "secret");
@@ -1717,9 +2219,44 @@ describe("All auth controllers work", () => {
 
     expect(knex.table).toHaveBeenCalledWith("OAUTH2_Subjects");
     expect(knex.where).toHaveBeenCalledWith({ id: 1 });
-    expect(knex.update).toHaveBeenCalledWith({ name: "new name" });
+    expect(updateFunction).toHaveBeenCalledWith({ name: "new name" });
 
     expect(res.status).toHaveBeenCalledWith(201);
+  });
+
+  test("Update user, user does not exists", async () => {
+    const req = {
+      body: {
+        name: "new name",
+      },
+      params: {
+        subjectId: 1,
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knex = {
+      table: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnValue([]),
+    };
+
+    const controllers = authControllers(knex, "secret");
+
+    controllers.handleError = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
+
+    await controllers.updateUser(req, res);
+
+    expect(knex.table).toHaveBeenCalledWith("OAUTH2_Users");
+    expect(knex.select).toHaveBeenCalled();
+    expect(knex.where).toHaveBeenCalledWith("subject_id", 1);
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
+    expect(controllers.handleError).toHaveBeenCalled();
   });
 
   test("Update user fails", async () => {
@@ -1744,10 +2281,12 @@ describe("All auth controllers work", () => {
     };
 
     const controllers = authControllers(knex, "secret");
-
+    controllers.handleError500 = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
     await controllers.updateUser(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(500);
+    expect(controllers.handleError500).toHaveBeenCalled();
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
   });
 
   test("Update client", async () => {
@@ -1765,10 +2304,17 @@ describe("All auth controllers work", () => {
       json: jest.fn(),
     };
 
+    const updateFunction = jest.fn().mockResolvedValue([1]);
+
     const knex = {
       table: jest.fn().mockReturnThis(),
-      where: jest.fn().mockReturnThis(),
-      update: jest.fn().mockResolvedValue([1]),
+      select: jest.fn().mockReturnThis(),
+      where: jest
+        .fn()
+        .mockReturnValueOnce([{ id: 1 }])
+        .mockReturnValueOnce({
+          update: updateFunction,
+        }),
     };
 
     const controllers = authControllers(knex, "secret");
@@ -1777,9 +2323,44 @@ describe("All auth controllers work", () => {
 
     expect(knex.table).toHaveBeenCalledWith("OAUTH2_Subjects");
     expect(knex.where).toHaveBeenCalledWith({ id: 1 });
-    expect(knex.update).toHaveBeenCalledWith({ name: "new name" });
+    expect(updateFunction).toHaveBeenCalledWith({ name: "new name" });
 
     expect(res.status).toHaveBeenCalledWith(201);
+  });
+
+  test("Update client, client does not exists", async () => {
+    const req = {
+      body: {
+        name: "new name",
+      },
+      params: {
+        subjectId: 1,
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knex = {
+      table: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnValue([]),
+    };
+
+    const controllers = authControllers(knex, "secret");
+
+    controllers.handleError = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
+
+    await controllers.updateClient(req, res);
+
+    expect(knex.table).toHaveBeenCalledWith("OAUTH2_Clients");
+    expect(knex.where).toHaveBeenCalledWith("subject_id", 1);
+
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
+    expect(controllers.handleError).toHaveBeenCalled();
   });
 
   test("Update client fails", async () => {
@@ -1804,10 +2385,12 @@ describe("All auth controllers work", () => {
     };
 
     const controllers = authControllers(knex, "secret");
-
+    controllers.handleError500 = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
     await controllers.updateClient(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(500);
+    expect(controllers.handleError500).toHaveBeenCalled();
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
   });
 
   test("Update password", async () => {
@@ -1863,6 +2446,58 @@ describe("All auth controllers work", () => {
     bcryptSpyHash.mockRestore();
   });
 
+  test("Update password, user does not exist", async () => {
+    const req = {
+      body: {
+        newPassword: "123",
+        oldPassword: "1234",
+      },
+      params: {
+        id: 1,
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knex = {
+      table: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnValue([]),
+      update: jest.fn().mockReturnThis(),
+    };
+
+    const bcryptSpyCompare = jest
+      .spyOn(bcrypt, "compare")
+      .mockImplementation(() => {
+        return true;
+      });
+
+    const bcryptSpyHash = jest.spyOn(bcrypt, "hash").mockImplementation(() => {
+      return "hashed";
+    });
+
+    const controllers = authControllers(knex, "secret");
+
+    controllers.handleError = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
+
+    await controllers.updatePassword(req, res);
+
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
+    expect(controllers.handleError).toHaveBeenCalledWith(
+      "User does not exist",
+      404006,
+      404,
+      "updatePassword"
+    );
+
+    bcryptSpyCompare.mockRestore();
+    bcryptSpyHash.mockRestore();
+  });
+
   test("Update password incorrect original password", async () => {
     const req = {
       body: {
@@ -1901,11 +2536,18 @@ describe("All auth controllers work", () => {
 
     const controllers = authControllers(knex, "secret");
 
+    controllers.handleError = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
+
     await controllers.updatePassword(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(400);
-
-    expect(bcryptSpyCompare).toHaveBeenCalled();
+    expect(controllers.handleError).toHaveBeenCalledWith(
+      "Incorrect password",
+      401002,
+      401,
+      "updatePassword"
+    );
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
 
     bcryptSpyCompare.mockRestore();
     bcryptSpyHash.mockRestore();
@@ -1945,10 +2587,12 @@ describe("All auth controllers work", () => {
     });
 
     const controllers = authControllers(knex, "secret");
-
+    controllers.handleError500 = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
     await controllers.updatePassword(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(500);
+    expect(controllers.handleError500).toHaveBeenCalled();
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
 
     bcryptSpyCompare.mockRestore();
     bcryptSpyHash.mockRestore();
@@ -2200,10 +2844,12 @@ describe("All auth controllers work", () => {
     });
 
     const controllers = authControllers(knexMock, "secret");
-
+    controllers.handleError500 = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
     await controllers.getRoles(mockedReq, mockRes);
 
-    expect(mockRes.status).toHaveBeenCalledWith(500);
+    expect(controllers.handleError500).toHaveBeenCalled();
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
   });
 
   test("Select resource basic", async () => {
@@ -2470,10 +3116,12 @@ describe("All auth controllers work", () => {
     });
 
     const controllers = authControllers(knexMock, "secret");
-
+    controllers.handleError500 = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
     await controllers.getResources(mockedReq, mockRes);
 
-    expect(mockRes.status).toHaveBeenCalledWith(500);
+    expect(controllers.handleError500).toHaveBeenCalled();
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
   });
 
   test("Update role permissions transaction", async () => {
@@ -2605,9 +3253,12 @@ describe("All auth controllers work", () => {
       json: jest.fn().mockResolvedValue([1]),
     };
     const controllers = authControllers(knex, "secret");
+    controllers.handleError500 = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
     await controllers.updateRolePermissions(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(500);
+    expect(controllers.handleError500).toHaveBeenCalled();
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
   });
 
   test("Update resource permissions transaction", async () => {
@@ -2727,9 +3378,12 @@ describe("All auth controllers work", () => {
       json: jest.fn().mockResolvedValue([1]),
     };
     const controllers = authControllers(knex, "secret");
+    controllers.handleError500 = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
     await controllers.updateResourcePermissions(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(500);
+    expect(controllers.handleError500).toHaveBeenCalled();
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
   });
 
   test("Create resource fails", async () => {
@@ -2788,9 +3442,12 @@ describe("All auth controllers work", () => {
     };
 
     const controllers = authControllers(knex, "secret");
+    controllers.handleError500 = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
     await controllers.createResource(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(500);
+    expect(controllers.handleError500).toHaveBeenCalled();
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
   });
 
   test("Delete resource transaction", async () => {
@@ -2868,9 +3525,12 @@ describe("All auth controllers work", () => {
     };
 
     const controllers = authControllers(knex, "secret");
+    controllers.handleError500 = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
     await controllers.deleteResource(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(500);
+    expect(controllers.handleError500).toHaveBeenCalled();
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
   });
 
   test("Select applications", async () => {
@@ -2905,9 +3565,12 @@ describe("All auth controllers work", () => {
       where: jest.fn().mockRejectedValueOnce(new Error("Async error")),
     };
     const controllers = authControllers(knex, "secret");
+    controllers.handleError500 = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
     await controllers.selectApplications(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(500);
+    expect(controllers.handleError500).toHaveBeenCalled();
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
   });
 
   test("Login works", async () => {
@@ -2954,6 +3617,102 @@ describe("All auth controllers work", () => {
     jwtSpy.mockRestore();
   });
 
+  test("Login, username does not exist", async () => {
+    const bcryptSpy = jest.spyOn(bcrypt, "compare").mockImplementation(() => {
+      return true;
+    });
+    const jwtSpy = jest.spyOn(jwt, "sign").mockImplementation(() => {
+      return "token";
+    });
+    const req = {
+      body: {
+        username: "admin",
+        password: "password",
+      },
+    };
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn().mockResolvedValue([1]),
+    };
+    const knex = {
+      table: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      join: jest.fn().mockReturnThis(),
+      where: jest.fn().mockResolvedValue([]),
+    };
+
+    const controllers = authControllers(knex, "secret");
+
+    controllers.handleError = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
+
+    await controllers.login(req, res);
+
+    expect(controllers.handleError).toHaveBeenCalledWith(
+      "Username does not exist",
+      404007,
+      404,
+      "login"
+    );
+
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
+
+    bcryptSpy.mockRestore();
+    jwtSpy.mockRestore();
+  });
+
+  test("Login, incorrect password", async () => {
+    const bcryptSpy = jest.spyOn(bcrypt, "compare").mockImplementation(() => {
+      return false;
+    });
+    const jwtSpy = jest.spyOn(jwt, "sign").mockImplementation(() => {
+      return "token";
+    });
+    const req = {
+      body: {
+        username: "admin",
+        password: "password",
+      },
+    };
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn().mockResolvedValue([1]),
+    };
+    const knex = {
+      table: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      join: jest.fn().mockReturnThis(),
+      where: jest.fn().mockResolvedValue([
+        {
+          username: "admin",
+          roles: "admin",
+          id: 1,
+          name: "Admin",
+          password: "password",
+        },
+      ]),
+    };
+
+    const controllers = authControllers(knex, "secret");
+
+    controllers.handleError = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
+
+    await controllers.login(req, res);
+
+    expect(controllers.handleError).toHaveBeenCalledWith(
+      "Incorrect password",
+      401001,
+      401,
+      "login"
+    );
+
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
+
+    bcryptSpy.mockRestore();
+    jwtSpy.mockRestore();
+  });
+
   test("Login fails", async () => {
     const bcryptSpy = jest.spyOn(bcrypt, "compare").mockImplementation(() => {
       return true;
@@ -2987,9 +3746,12 @@ describe("All auth controllers work", () => {
     };
 
     const controllers = authControllers(knex, "secret");
+    controllers.handleError500 = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
     await controllers.login(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(500);
+    expect(controllers.handleError500).toHaveBeenCalled();
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
 
     bcryptSpy.mockRestore();
     jwtSpy.mockRestore();
@@ -3010,13 +3772,17 @@ describe("All auth controllers work", () => {
     const knex = {};
 
     const controllers = authControllers(knex, "secret");
+    controllers.handleError = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
     await controllers.token(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith({
-      code: 400400,
-      message: "Unsupported grand type",
-    });
+    expect(controllers.handleError).toHaveBeenCalledWith(
+      "Unsupported grand type",
+      400002,
+      400,
+      "token"
+    );
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
   });
 
   test("Token generator clients", async () => {
@@ -3049,7 +3815,7 @@ describe("All auth controllers work", () => {
     });
   });
 
-  test("Token generator clients error 400001", async () => {
+  test("Token generator clients error 401100", async () => {
     const req = {
       body: {
         grant_type: "client_credentials",
@@ -3066,18 +3832,23 @@ describe("All auth controllers work", () => {
     const knex = {};
 
     const controllers = authControllers(knex, "secret");
-    controllers.handleClientToken = jest.fn().mockResolvedValue([null, 400001]);
+    controllers.handleClientToken = jest.fn().mockResolvedValue([null, 401100]);
+
+    controllers.handleError = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
 
     await controllers.token(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith({
-      code: 400001,
-      message: "Incorrect client secret",
-    });
+    expect(controllers.handleError).toHaveBeenCalledWith(
+      "Incorrect client secret",
+      401100,
+      401,
+      "token"
+    );
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
   });
 
-  test("Token generator clients error 400011", async () => {
+  test("Token generator clients error 403100", async () => {
     const req = {
       body: {
         grant_type: "client_credentials",
@@ -3094,19 +3865,23 @@ describe("All auth controllers work", () => {
     const knex = {};
 
     const controllers = authControllers(knex, "secret");
-    controllers.handleClientToken = jest.fn().mockResolvedValue([null, 400011]);
+    controllers.handleClientToken = jest.fn().mockResolvedValue([null, 403100]);
+
+    controllers.handleError = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
 
     await controllers.token(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith({
-      code: 400011,
-      message:
-        "Client is not able to generate tokens, use your long live token",
-    });
+    expect(controllers.handleError).toHaveBeenCalledWith(
+      "Client is not able to generate tokens, use your long live token",
+      403100,
+      403,
+      "token"
+    );
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
   });
 
-  test("Token generator clients error 400004", async () => {
+  test("Token generator clients error 404100", async () => {
     const req = {
       body: {
         grant_type: "client_credentials",
@@ -3123,15 +3898,20 @@ describe("All auth controllers work", () => {
     const knex = {};
 
     const controllers = authControllers(knex, "secret");
-    controllers.handleClientToken = jest.fn().mockResolvedValue([null, 400004]);
+    controllers.handleClientToken = jest.fn().mockResolvedValue([null, 404100]);
+
+    controllers.handleError = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
 
     await controllers.token(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(404);
-    expect(res.json).toHaveBeenCalledWith({
-      code: 400004,
-      message: "Client not found",
-    });
+    expect(controllers.handleError).toHaveBeenCalledWith(
+      `Client with id 1 not found`,
+      404100,
+      404,
+      "token"
+    );
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
   });
 
   test("Token generator clients error", async () => {
@@ -3154,10 +3934,12 @@ describe("All auth controllers work", () => {
     controllers.handleClientToken = jest
       .fn()
       .mockResolvedValue([null, "Some Error"]);
-
+    controllers.handleError500 = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
     await controllers.token(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(500);
+    expect(controllers.handleError500).toHaveBeenCalled();
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
   });
 
   test("Token generator users", async () => {
@@ -3192,7 +3974,7 @@ describe("All auth controllers work", () => {
     });
   });
 
-  test("Token generator users error 400001", async () => {
+  test("Token generator users error 401200", async () => {
     const req = {
       body: {
         grant_type: "password",
@@ -3210,18 +3992,23 @@ describe("All auth controllers work", () => {
 
     const controllers = authControllers(knex, "secret");
 
-    controllers.handleUserToken = jest.fn().mockResolvedValue([null, 400001]);
+    controllers.handleError = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
+
+    controllers.handleUserToken = jest.fn().mockResolvedValue([null, 401200]);
 
     await controllers.token(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith({
-      message: "Incorrect user password",
-      code: 400001,
-    });
+    expect(controllers.handleError).toHaveBeenCalledWith(
+      "Incorrect user password",
+      401200,
+      401,
+      "token"
+    );
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
   });
 
-  test("Token generator users error 400004", async () => {
+  test("Token generator users error 404200", async () => {
     const req = {
       body: {
         grant_type: "password",
@@ -3239,15 +4026,20 @@ describe("All auth controllers work", () => {
 
     const controllers = authControllers(knex, "secret");
 
-    controllers.handleUserToken = jest.fn().mockResolvedValue([null, 400004]);
+    controllers.handleError = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
+
+    controllers.handleUserToken = jest.fn().mockResolvedValue([null, 404200]);
 
     await controllers.token(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(404);
-    expect(res.json).toHaveBeenCalledWith({
-      message: "User not found",
-      code: 400004,
-    });
+    expect(controllers.handleError).toHaveBeenCalledWith(
+      "User not found",
+      404200,
+      404,
+      "token"
+    );
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
   });
 
   test("Token generator users error", async () => {
@@ -3271,10 +4063,12 @@ describe("All auth controllers work", () => {
     controllers.handleUserToken = jest
       .fn()
       .mockResolvedValue([null, "Some error"]);
-
+    controllers.handleError500 = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
     await controllers.token(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(500);
+    expect(controllers.handleError500).toHaveBeenCalled();
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
   });
 
   test("Token generator fails", async () => {
@@ -3298,10 +4092,12 @@ describe("All auth controllers work", () => {
     controllers.handleUserToken = jest
       .fn()
       .mockRejectedValue(new Error("Async error"));
-
+    controllers.handleError500 = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
     await controllers.token(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(500);
+    expect(controllers.handleError500).toHaveBeenCalled();
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
   });
 
   test("Generate long live token", async () => {
@@ -3323,7 +4119,8 @@ describe("All auth controllers work", () => {
     const knexMock = {
       table: jest.fn().mockReturnThis(),
       update: jest.fn().mockReturnThis(),
-      where: jest.fn().mockResolvedValue("some"),
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockResolvedValue([{ client_id: 1 }]),
     };
 
     const controllers = authControllers(knexMock, "secret");
@@ -3335,6 +4132,7 @@ describe("All auth controllers work", () => {
     expect(knexMock.table).toHaveBeenCalledWith("OAUTH2_Clients");
     expect(knexMock.update).toHaveBeenCalled();
     expect(knexMock.where).toHaveBeenCalledWith("OAUTH2_Clients.id", "=", 1);
+    expect(knexMock.where).toHaveBeenCalledWith("id", 1);
     bcryptSpy.mockRestore();
   });
 
@@ -3441,12 +4239,15 @@ describe("All auth controllers work", () => {
     };
 
     const controllers = authControllers(knex, "secret");
+    controllers.handleError500 = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
     await controllers.generateLongLive(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(500);
+    expect(controllers.handleError500).toHaveBeenCalled();
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
   });
 
-  test("Handle user token 400004", async () => {
+  test("Handle user token 404200", async () => {
     const username = "username";
     const password = "password";
 
@@ -3462,10 +4263,10 @@ describe("All auth controllers work", () => {
     const controllers = authControllers(knex, "secret");
     const result = await controllers.handleUserToken(username, password);
 
-    expect(result).toStrictEqual([null, 400004]);
+    expect(result).toStrictEqual([null, 404200]);
   });
 
-  test("Handle user token 400001", async () => {
+  test("Handle user token 401200", async () => {
     const username = "username";
     const password = "password";
     const bcryptSpy = jest.spyOn(bcrypt, "compare").mockImplementation(() => {
@@ -3482,11 +4283,11 @@ describe("All auth controllers work", () => {
     const controllers = authControllers(knex, "secret");
     const result = await controllers.handleUserToken(username, password);
 
-    expect(result).toStrictEqual([null, 400001]);
+    expect(result).toStrictEqual([null, 401200]);
     bcryptSpy.mockRestore();
   });
 
-  test("Handle client token 400004", async () => {
+  test("Handle client token 404100", async () => {
     const client_id = "username";
     const client_secret = "password";
 
@@ -3504,7 +4305,7 @@ describe("All auth controllers work", () => {
       client_secret
     );
 
-    expect(result).toStrictEqual([null, 400004]);
+    expect(result).toStrictEqual([null, 404100]);
   });
 
   test("Handle client token function", async () => {
@@ -3542,7 +4343,7 @@ describe("All auth controllers work", () => {
     expect(result[1]).toBe(null);
   });
 
-  test("Handle client token 400001", async () => {
+  test("Handle client token 401100", async () => {
     const client_id = "username";
     const client_secret = "password";
     const bcryptSpy = jest.spyOn(bcrypt, "compare").mockImplementation(() => {
@@ -3574,7 +4375,7 @@ describe("All auth controllers work", () => {
       client_secret
     );
 
-    expect(result).toStrictEqual([null, 400001]);
+    expect(result).toStrictEqual([null, 401100]);
     expect(bufferSpy).toHaveBeenCalled();
     expect(decipherSpy).toHaveBeenCalled();
 
@@ -3583,7 +4384,7 @@ describe("All auth controllers work", () => {
     decipherSpy.mockRestore();
   });
 
-  test("Get client secret", async () => {
+  test("Get client secret works", async () => {
     const req = {
       params: {
         id: 1,
@@ -3627,6 +4428,87 @@ describe("All auth controllers work", () => {
     decipherSpy.mockRestore();
   });
 
+  test("Get client secret, client does not exist", async () => {
+    const req = {
+      params: {
+        id: 1,
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knex = {
+      table: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnValue([]),
+    };
+
+    const decipherSpy = jest
+      .spyOn(crypto, "createDecipheriv")
+      .mockImplementation(() => {
+        return {
+          update: jest.fn().mockReturnValue("u"),
+          final: jest.fn().mockReturnValue("U"),
+        };
+      });
+
+    const controllers = authControllers(knex, "secret");
+
+    controllers.handleError = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
+    await controllers.getClientSecret(req, res);
+    expect(controllers.handleError).toHaveBeenCalledWith(
+      "Client does not exist",
+      404006,
+      404,
+      "getClientSecret"
+    );
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
+
+    decipherSpy.mockRestore();
+  });
+
+  test("Get client secret fails", async () => {
+    const req = {
+      params: {
+        id: 1,
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knex = {
+      table: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockRejectedValueOnce(new Error("Async error")),
+    };
+
+    const decipherSpy = jest
+      .spyOn(crypto, "createDecipheriv")
+      .mockImplementation(() => {
+        return {
+          update: jest.fn().mockReturnValue("u"),
+          final: jest.fn().mockReturnValue("U"),
+        };
+      });
+
+    const controllers = authControllers(knex, "secret");
+
+    controllers.handleError500 = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
+    await controllers.getClientSecret(req, res);
+    expect(controllers.handleError500).toHaveBeenCalled();
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
+
+    decipherSpy.mockRestore();
+  });
+
   test("Revoke Token Works", async () => {
     const req = {
       body: {
@@ -3654,6 +4536,38 @@ describe("All auth controllers work", () => {
     expect(res.status).toHaveBeenCalledWith(201);
 
     expect(knex.update).toHaveBeenCalledWith({ revoked: false });
+  });
+
+  test("Revoke Token fails", async () => {
+    const req = {
+      body: {
+        revoke: false,
+      },
+      params: {
+        id: 1,
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knex = {
+      table: jest.fn().mockReturnThis(),
+      update: jest.fn().mockReturnThis(),
+      where: jest.fn().mockRejectedValueOnce(new Error("Async error")),
+    };
+
+    const controllers = authControllers(knex, "secret");
+
+    controllers.handleError500 = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
+
+    await controllers.revokeToken(req, res);
+
+    expect(controllers.handleError500).toHaveBeenCalled();
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
   });
 
   test("Update subject roles works", async () => {
@@ -3687,7 +4601,7 @@ describe("All auth controllers work", () => {
         roles,
       },
       params: {
-        id: 1,
+        subjectId: 1,
       },
     };
 
@@ -3711,5 +4625,121 @@ describe("All auth controllers work", () => {
     expect(knex.table).toHaveBeenCalledTimes(2);
 
     expect(knex.del).toHaveBeenCalledTimes(1);
+
+    expect(res.status).toHaveBeenCalledWith(201);
+  });
+
+  test("Update subject roles works, fails", async () => {
+    const roles = [
+      {
+        id: 1,
+      },
+      {
+        id: 2,
+      },
+      {
+        id: 4,
+      },
+    ];
+
+    const originalRolesList = [
+      {
+        id: 1,
+      },
+      {
+        id: 2,
+      },
+      {
+        id: 3,
+      },
+    ];
+
+    const req = {
+      body: {
+        originalRolesList,
+        roles,
+      },
+      params: {
+        subjectId: 1,
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knex = {
+      table: jest.fn().mockReturnThis(),
+      del: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnValue(1),
+      insert: jest.fn().mockRejectedValueOnce(new Error("Async error")),
+    };
+
+    const controllers = authControllers(knex, "secret");
+    controllers.handleError500 = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
+    await controllers.updateSubjectRoles(req, res);
+
+    expect(controllers.handleError500).toHaveBeenCalled();
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
+  });
+
+  test("Update subject roles works, non valid subject id", async () => {
+    const roles = [
+      {
+        id: 1,
+      },
+      {
+        id: 2,
+      },
+      {
+        id: 4,
+      },
+    ];
+
+    const originalRolesList = [
+      {
+        id: 1,
+      },
+      {
+        id: 2,
+      },
+      {
+        id: 3,
+      },
+    ];
+
+    const req = {
+      body: {
+        originalRolesList,
+        roles,
+      },
+      params: {
+        subjectId: "xx",
+      },
+    };
+
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+
+    const knex = {};
+
+    const controllers = authControllers(knex, "secret");
+    controllers.handleError = jest.fn();
+    controllers.callNextOrResOnError = jest.fn();
+    await controllers.updateSubjectRoles(req, res);
+
+    expect(controllers.handleError).toHaveBeenCalledWith(
+      `xx is not a valid subject id`,
+      400009,
+      400,
+      "updateClient"
+    );
+
+    expect(controllers.callNextOrResOnError).toHaveBeenCalled();
   });
 });

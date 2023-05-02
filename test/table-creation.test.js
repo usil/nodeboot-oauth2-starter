@@ -5,7 +5,7 @@ const bcrypt = require("bcrypt");
 jest.mock("bcrypt");
 
 const mockKnexCreationSchema = () => {
-  const knex = {
+  return {
     schema: {
       createTable: jest
         .fn()
@@ -14,12 +14,10 @@ const mockKnexCreationSchema = () => {
     },
     transaction: jest.fn(),
   };
-
-  return knex;
 };
 
 const mockedKnexSchema = () => {
-  const knex = {
+  return {
     schema: {
       dropTableIfExists: jest
         .fn()
@@ -34,8 +32,6 @@ const mockedKnexSchema = () => {
         .mockResolvedValueOnce(true),
     },
   };
-
-  return knex;
 };
 
 const mockedNormalKnex = () => {

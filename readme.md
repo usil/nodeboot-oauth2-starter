@@ -93,18 +93,34 @@ The roles of an application, they join the application part with an permission a
 
 You just need to declare the `nodeboot-oauth2-starter` class. To do this you will need to pass it the following values:
 
-| Value          | Description                                                                           | Requirement | Type          |
-| -------------- | ------------------------------------------------------------------------------------- | ----------- | ------------- |
-| expressApp     | Any express application                                                               | `required`  | `Express.app` |
-| knex           | An knex connection using mysql                                                        | `required`  | `Knex`        |
-| jwtSecret      | A secret to encode your jwt tokens                                                    | `required`  | `string`      |
-| cryptoSecret   | A secret to encrypt the client secret                                                 | `required`  | `string`      |
-| extraResources | An array containing extra basic application resources to add in the database creation | `optional`  | `string[]`    |
+| Value      | Description                                         | Requirement | Type          |
+| ---------- | --------------------------------------------------- | ----------- | ------------- |
+| expressApp | Any express application                             | `required`  | `Express.app` |
+| knex       | An knex connection using mysql                      | `required`  | `Knex`        |
+| log        | A logger to print messages (console is the default) | `optional`  | `Object`      |
+
+Then you have the options
+
+| Value               | Description                                                                           | Requirement | Type       |
+| ------------------- | ------------------------------------------------------------------------------------- | ----------- | ---------- |
+| jwtSecret           | A secret to encode your jwt tokens                                                    | `required`  | `string`   |
+| cryptoSecret        | A secret to encrypt the client secret                                                 | `required`  | `string`   |
+| extraResources      | An array containing extra basic application resources to add in the database creation | `optional`  | `string[]` |
+| mainApplicationName | How will the main application be called                                               | `optional`  | `string`   |
+| clientIdSuffix      | The client id suffix                                                                  | `optional`  | `string`   |
+| externalErrorHandle | Handle the errors using next() in express                                             | `optional`  | `boolean`  |
+| expiresIn           | The time in where the JWT tokens expire                                               | `optional`  | `string`   |
 
 ```javascript
-const oauthBoot = new OauthBoot(expressApp, knex, jwtSecret, cryptoSecret, [
-  "extra",
-]);
+const oauthBoot = new OauthBoot(expressApp, knex, log, cryptoSecret, {
+  jwtSecret: "secret",
+  cryptoSecret: "cryptoSecret",
+  extraResources: ["extra"],
+  mainApplicationName: "OAUTH2_main_application",
+  clientIdSuffix: "::client.app",
+  externalErrorHandle: true,
+  expiresIn: "24h",
+});
 ```
 
 The `oauthBoot` has the following variables:
@@ -150,6 +166,10 @@ expressApp.obPost('/', 'applicationResource:resourcePermission', (req, res) => {
 expressApp.obPut('/', 'applicationResource:resourcePermission', (req, res) => {...});
 expressApp.obDelete('/', 'applicationResource:resourcePermission', (req, res) => {...});
 ```
+
+### IMPORTANT
+
+The declaration of `expressApp.obGet('/somePath', ...);` should be done like that DO NOT USE `/somePath/`.
 
 ### Accessing the protected endpoints
 

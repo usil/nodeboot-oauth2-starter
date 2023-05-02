@@ -3,19 +3,93 @@ const jwt = require("jsonwebtoken");
 const generalHelpers = require("../general-helpers.js");
 const randomstring = require("randomstring");
 const crypto = require("crypto");
+const ErrorForNext = require("../ErrorForNext.js");
 
 const authControllers = (
   knex,
   jwtSecret,
   expiresIn = "24h",
   cryptoSecret = "key",
-  clientIdSuffix = "::client.app"
+  clientIdSuffix = "::client.app",
+  externalErrorHandle = true
 ) => {
   const controller = {};
 
-  controller.createUser = async (req, res) => {
+  controller.handleError = (message, errorCode, statusCode, onFunction) => {
+    if (!externalErrorHandle) {
+      return {
+        code: errorCode,
+        message: message,
+      };
+    }
+    return new ErrorForNext(message, statusCode)
+      .setErrorCode(errorCode)
+      .setOnFunction(onFunction)
+      .setOnFile("controller.js")
+      .setOnLibrary("nodeboot-oauth2-starter")
+      .setLogMessage(message)
+      .toJson();
+  };
+
+  controller.handleError500 = (errorCode, error, onFunction) => {
+    if (!externalErrorHandle) {
+      return {
+        code: errorCode,
+        message: error.message,
+      };
+    }
+    return new ErrorForNext(error.message, 500)
+      .setErrorCode(errorCode)
+      .setOnFunction(onFunction)
+      .setOnFile("controller.js")
+      .setOnLibrary("nodeboot-oauth2-starter")
+      .setOriginalError(error)
+      .setLogMessage(error.message)
+      .toJson();
+  };
+
+  controller.handleNotUniqueError409 = (uniqueField, errorCode, onFunction) => {
+    if (externalErrorHandle) {
+      return new ErrorForNext(`That ${uniqueField} is already on use`, 409)
+        .setErrorCode(errorCode)
+        .setOnFunction(onFunction)
+        .setOnFile("controller.js")
+        .setOnLibrary("nodeboot-oauth2-starter")
+        .setLogMessage(`${uniqueField} is not unique`)
+        .toJson();
+    }
+    return {
+      code: errorCode,
+      message: `That ${uniqueField} is already on use`,
+    };
+  };
+
+  controller.callNextOrResOnError = (res, next, jsonCall, code = 500) => {
+    if (externalErrorHandle) {
+      next(jsonCall);
+      return;
+    }
+    res.status(code).json(jsonCall);
+  };
+
+  controller.createUser = async (req, res, next) => {
     try {
-      const { password } = req.body;
+      const { password, username } = req.body;
+
+      const user = await knex
+        .table("OAUTH2_Users")
+        .select()
+        .where("username", username.toLowerCase());
+
+      if (user && user.length > 0) {
+        const errorJson = controller.handleNotUniqueError409(
+          "username",
+          409101,
+          "createUser"
+        );
+        return controller.callNextOrResOnError(res, next, errorJson, 409);
+      }
+
       const encryptedPassword = await bcrypt.hash(password, 10);
 
       req.body.encryptedPassword = encryptedPassword;
@@ -30,11 +104,12 @@ const authControllers = (
         .status(201)
         .json({ code: 200001, message: "User added", content: { userId } });
     } catch (error) {
-      console.log(error);
-      return res.status(500).json({
-        code: 500000,
-        message: error.message,
-      });
+      const error500Json = controller.handleError500(
+        500101,
+        error,
+        "createUser"
+      );
+      return controller.callNextOrResOnError(res, next, error500Json);
     }
   };
 
@@ -105,7 +180,7 @@ const authControllers = (
         access_token = jwt.sign(
           {
             data: {
-              id: result[0],
+              id: clientStringId,
               subjectType: "client",
               identifier: identifier.toLowerCase(),
             },
@@ -131,16 +206,30 @@ const authControllers = (
 
       return { clientSecret, clientId: clientStringId, access_token };
     } catch (error) {
-      console.log(error);
       throw new Error(error.message);
     }
   };
 
-  controller.createClient = async (req, res) => {
+  controller.createClient = async (req, res, next) => {
     try {
       let response;
 
       const { longLive } = req.query;
+      const { identifier } = req.body;
+
+      const client = await knex
+        .table("OAUTH2_Clients")
+        .select()
+        .where("identifier", identifier);
+
+      if (client && client.length > 0) {
+        const errorJson = controller.handleNotUniqueError409(
+          "identifier",
+          409102,
+          "createClient"
+        );
+        return controller.callNextOrResOnError(res, next, errorJson, 409);
+      }
 
       await knex.transaction(async (trx) => {
         response = await controller.createClientTransaction(
@@ -156,30 +245,49 @@ const authControllers = (
         content: response,
       });
     } catch (error) {
-      console.log(error);
-      return res.status(500).json({
-        code: 500000,
-        message: error.message,
-      });
+      const error500Json = controller.handleError500(
+        500102,
+        error,
+        "createClient"
+      );
+      return controller.callNextOrResOnError(res, next, error500Json);
     }
   };
 
-  controller.createRole = async (req, res) => {
+  controller.createRole = async (req, res, next) => {
     try {
-      let roleId;
+      const { identifier } = req.body;
+
+      const role = await knex
+        .table("OAUTH2_Roles")
+        .select()
+        .where("identifier", identifier);
+
+      if (role && role.length > 0) {
+        const errorJson = controller.handleNotUniqueError409(
+          "identifier",
+          409103,
+          "createRole"
+        );
+        return controller.callNextOrResOnError(res, next, errorJson, 409);
+      }
+
+      let roleId = -1;
 
       await knex.transaction(async (trx) => {
         roleId = await controller.createRoleTransaction(trx, req.body);
       });
+
       return res
         .status(201)
         .json({ code: 200001, message: "Role added", content: { roleId } });
     } catch (error) {
-      console.log(error);
-      return res.status(500).json({
-        code: 500000,
-        message: error.message,
-      });
+      const error500Json = controller.handleError500(
+        500103,
+        error,
+        "createRole"
+      );
+      return controller.callNextOrResOnError(res, next, error500Json);
     }
   };
 
@@ -206,27 +314,44 @@ const authControllers = (
     }
   };
 
-  controller.createApplication = async (req, res) => {
+  controller.createApplication = async (req, res, next) => {
     try {
       const { identifier } = req.body;
+
+      const application = await knex
+        .table("OAUTH2_Applications")
+        .select()
+        .where("identifier", identifier);
+
+      if (application && application.length > 0) {
+        const errorJson = controller.handleNotUniqueError409(
+          "identifier",
+          409104,
+          "createApplication"
+        );
+        return controller.callNextOrResOnError(res, next, errorJson, 409);
+      }
+
       const applicationId = await knex
         .table("OAUTH2_Applications")
         .insert({ identifier });
+
       return res.status(201).json({
         code: 200001,
         message: "Application added",
         content: { applicationId: applicationId[0] },
       });
     } catch (error) {
-      console.log(error);
-      return res.status(500).json({
-        code: 500000,
-        message: error.message,
-      });
+      const error500Json = controller.handleError500(
+        500104,
+        error,
+        "createApplication"
+      );
+      return controller.callNextOrResOnError(res, next, error500Json);
     }
   };
 
-  controller.createApplicationResource = async (req, res) => {
+  controller.createApplicationResource = async (req, res, next) => {
     try {
       const { resourceIdentifier, applications_id } = req.body;
       const applicationResourceId = await knex
@@ -241,15 +366,16 @@ const authControllers = (
         content: applicationResourceId[0],
       });
     } catch (error) {
-      console.log(error);
-      return res.status(500).json({
-        code: 500000,
-        message: error.message,
-      });
+      const error500Json = controller.handleError500(
+        500105,
+        error,
+        "createApplicationResource"
+      );
+      return controller.callNextOrResOnError(res, next, error500Json);
     }
   };
 
-  controller.createPermission = async (req, res) => {
+  controller.createPermission = async (req, res, next) => {
     try {
       const { allowed, applicationResource_id } = req.body;
       const permissionId = await knex.table("OAUTH2_Permissions").insert({
@@ -262,15 +388,16 @@ const authControllers = (
         content: { permissionId: permissionId[0] },
       });
     } catch (error) {
-      console.log(error);
-      return res.status(500).json({
-        code: 500000,
-        message: error.message,
-      });
+      const error500Json = controller.handleError500(
+        500106,
+        error,
+        "createPermission"
+      );
+      return controller.callNextOrResOnError(res, next, error500Json);
     }
   };
 
-  controller.getUsers = async (req, res) => {
+  controller.getUsers = async (req, res, next) => {
     try {
       let itemsPerPage = 5;
       let pageIndex = 0;
@@ -364,23 +491,24 @@ const authControllers = (
         },
       });
     } catch (error) {
-      console.log(error);
-      return res.status(500).json({
-        code: 500000,
-        message: error.message,
-      });
+      const error500Json = controller.handleError500(500107, error, "getUsers");
+      return controller.callNextOrResOnError(res, next, error500Json);
     }
   };
 
-  controller.getUser = async (req, res) => {
+  controller.getUser = async (req, res, next) => {
     try {
       if (isNaN(req.params.id)) {
-        return res.status(400).json({
-          code: 400000,
-          message: "Invalid user id",
-        });
+        const errorJson = controller.handleError(
+          "Invalid user id",
+          400001,
+          400,
+          "getUser"
+        );
+        return controller.callNextOrResOnError(res, next, errorJson, 400);
       }
-      const users = await knex
+
+      const user = await knex
         .table("OAUTH2_Users")
         .select(
           "OAUTH2_Users.id",
@@ -422,8 +550,18 @@ const authControllers = (
         )
         .where("OAUTH2_Users.id", req.params.id);
 
+      if ((user && user.length === 0) || user === undefined) {
+        const errorJson = controller.handleError(
+          "User does not exist",
+          404002,
+          404,
+          "getUser"
+        );
+        return controller.callNextOrResOnError(res, next, errorJson, 404);
+      }
+
       const helper = generalHelpers();
-      const parsedUsers = helper.parseSubjectSearch(users, "user");
+      const parsedUsers = helper.parseSubjectSearch(user, "user");
 
       return res.status(200).json({
         code: 200000,
@@ -431,27 +569,21 @@ const authControllers = (
         content: parsedUsers,
       });
     } catch (error) {
-      console.log(error);
-      return res.status(500).json({
-        code: 500000,
-        message: error.message,
-      });
+      const error500Json = controller.handleError500(500108, error, "getUser");
+      return controller.callNextOrResOnError(res, next, error500Json);
     }
   };
 
-  controller.getMe = async (req, res) => {
+  controller.getMe = async (_req, res, next) => {
     try {
-      if (!res.locals.user) {
-        return res.status(403).json({
-          code: 400301,
-          message: "Forbidden user",
-        });
-      }
       if (res.locals.user && res.locals.user.subjectType !== "user") {
-        return res.status(400).json({
-          code: 400001,
-          message: "Invalid subject user",
-        });
+        const errorJson = controller.handleError(
+          `Invalid subject type ${res.locals.user.subjectType}`,
+          400003,
+          400,
+          "getMe"
+        );
+        return controller.callNextOrResOnError(res, next, errorJson, 400);
       }
 
       const users = await knex
@@ -506,15 +638,12 @@ const authControllers = (
         content: parsedUsers[0],
       });
     } catch (error) {
-      console.log(error);
-      return res.status(500).json({
-        code: 500000,
-        message: error.message,
-      });
+      const error500Json = controller.handleError500(500109, error, "getMe");
+      return controller.callNextOrResOnError(res, next, error500Json);
     }
   };
 
-  controller.getClients = async (req, res) => {
+  controller.getClients = async (req, res, next) => {
     try {
       let itemsPerPage = 5;
       let pageIndex = 0;
@@ -614,24 +743,28 @@ const authControllers = (
         },
       });
     } catch (error) {
-      console.log(error);
-      return res.status(500).json({
-        code: 500000,
-        message: error.message,
-      });
+      const error500Json = controller.handleError500(
+        500110,
+        error,
+        "getClients"
+      );
+      return controller.callNextOrResOnError(res, next, error500Json);
     }
   };
 
-  controller.updateSubjectRoles = async (req, res) => {
+  controller.updateSubjectRoles = async (req, res, next) => {
     try {
       const { roles, originalRolesList } = req.body;
       const subjectId = req.params.subjectId;
 
       if (subjectId && isNaN(subjectId)) {
-        return res.status(400).json({
-          code: 400000,
-          message: "Subject id is not valid",
-        });
+        const errorJson = controller.handleError(
+          `${subjectId} is not a valid subject id`,
+          400009,
+          400,
+          "updateClient"
+        );
+        return controller.callNextOrResOnError(res, next, errorJson, 400);
       }
 
       const rolesToDelete = originalRolesList.flatMap((r) => {
@@ -668,10 +801,12 @@ const authControllers = (
         .status(201)
         .json({ code: 200000, message: "Subject roles updated" });
     } catch (error) {
-      return res.status(500).json({
-        code: 500000,
-        message: error.message,
-      });
+      const error500Json = controller.handleError500(
+        500111,
+        error,
+        "updateSubjectRoles"
+      );
+      return controller.callNextOrResOnError(res, next, error500Json);
     }
   };
 
@@ -691,9 +826,24 @@ const authControllers = (
     }
   };
 
-  controller.deleteUser = async (req, res) => {
+  controller.deleteUser = async (req, res, next) => {
     try {
       const subjectId = req.params.subjectId;
+
+      const user = await knex
+        .table("OAUTH2_Users")
+        .select()
+        .where("subject_id", subjectId);
+
+      if ((user && user.length === 0) || user === undefined) {
+        const errorJson = controller.handleError(
+          "User does not exist",
+          404002,
+          404,
+          "deleteUser"
+        );
+        return controller.callNextOrResOnError(res, next, errorJson, 404);
+      }
 
       await knex.transaction(async (trx) => {
         await controller.deleteUserTransaction(trx, subjectId);
@@ -701,10 +851,12 @@ const authControllers = (
 
       return res.status(201).json({ code: 200001, message: "User deleted" });
     } catch (error) {
-      return res.status(500).json({
-        code: 500000,
-        message: error.message,
-      });
+      const error500Json = controller.handleError500(
+        500112,
+        error,
+        "deleteUser"
+      );
+      return controller.callNextOrResOnError(res, next, error500Json);
     }
   };
 
@@ -724,9 +876,24 @@ const authControllers = (
     }
   };
 
-  controller.deleteClient = async (req, res) => {
+  controller.deleteClient = async (req, res, next) => {
     try {
       const subjectId = req.params.subjectId;
+
+      const client = await knex
+        .table("OAUTH2_Clients")
+        .select()
+        .where("subject_id", subjectId);
+
+      if ((client && client.length === 0) || client === undefined) {
+        const errorJson = controller.handleError(
+          "Client does not exist",
+          404003,
+          404,
+          "deleteClient"
+        );
+        return controller.callNextOrResOnError(res, next, errorJson, 404);
+      }
 
       await knex.transaction(async (trx) => {
         await controller.deleteClientTransaction(trx, subjectId);
@@ -734,16 +901,33 @@ const authControllers = (
 
       return res.status(201).json({ code: 200001, message: "Client deleted" });
     } catch (error) {
-      return res.status(500).json({
-        code: 500000,
-        message: error.message,
-      });
+      const error500Json = controller.handleError500(
+        500113,
+        error,
+        "deleteClient"
+      );
+      return controller.callNextOrResOnError(res, next, error500Json);
     }
   };
 
-  controller.deleteRole = async (req, res) => {
+  controller.deleteRole = async (req, res, next) => {
     try {
       const roleId = req.params.id;
+
+      const role = await knex
+        .table("OAUTH2_Roles")
+        .select()
+        .where("id", roleId);
+
+      if ((role && role.length === 0) || role === undefined) {
+        const errorJson = controller.handleError(
+          "Role does not exist",
+          404004,
+          404,
+          "deleteRole"
+        );
+        return controller.callNextOrResOnError(res, next, errorJson, 404);
+      }
 
       await knex
         .table("OAUTH2_Roles")
@@ -752,23 +936,33 @@ const authControllers = (
 
       return res.status(201).json({ code: 200001, message: "Role deleted" });
     } catch (error) {
-      return res.status(500).json({
-        code: 500000,
-        message: error.message,
-      });
+      const error500Json = controller.handleError500(
+        500114,
+        error,
+        "deleteRole"
+      );
+      return controller.callNextOrResOnError(res, next, error500Json);
     }
   };
 
-  controller.updateUser = async (req, res) => {
+  controller.updateUser = async (req, res, next) => {
     try {
       const { name } = req.body;
       const subjectId = req.params.subjectId;
 
-      if (subjectId && isNaN(subjectId)) {
-        return res.status(400).json({
-          code: 400001,
-          message: "Subject id is invalid",
-        });
+      const user = await knex
+        .table("OAUTH2_Users")
+        .select()
+        .where("subject_id", subjectId);
+
+      if ((user && user.length === 0) || user === undefined) {
+        const errorJson = controller.handleError(
+          "User does not exist",
+          404005,
+          404,
+          "updateUser"
+        );
+        return controller.callNextOrResOnError(res, next, errorJson, 404);
       }
 
       await knex
@@ -778,21 +972,35 @@ const authControllers = (
 
       return res.status(201).json({ code: 200001, message: "User updated" });
     } catch (error) {
-      return res.status(500).json({
-        code: 500000,
-        message: error.message,
-      });
+      const error500Json = controller.handleError500(
+        500115,
+        error,
+        "updateUser"
+      );
+      return controller.callNextOrResOnError(res, next, error500Json);
     }
   };
 
-  controller.updatePassword = async (req, res) => {
+  controller.updatePassword = async (req, res, next) => {
     try {
       const { newPassword, oldPassword } = req.body;
+
+      const userId = req.params.id;
 
       const user = await knex
         .table("OAUTH2_Users")
         .select()
-        .where({ id: req.params.id });
+        .where({ id: userId });
+
+      if ((user && user.length === 0) || user === undefined) {
+        const errorJson = controller.handleError(
+          "User does not exist",
+          404006,
+          404,
+          "updatePassword"
+        );
+        return controller.callNextOrResOnError(res, next, errorJson, 404);
+      }
 
       const correctPassword = await bcrypt.compare(
         oldPassword,
@@ -800,10 +1008,13 @@ const authControllers = (
       );
 
       if (!correctPassword) {
-        return res.status(400).json({
-          code: 400001,
-          message: "Incorrect password",
-        });
+        const errorJson = controller.handleError(
+          "Incorrect password",
+          401002,
+          401,
+          "updatePassword"
+        );
+        return controller.callNextOrResOnError(res, next, errorJson, 401);
       }
 
       const encryptedPassword = await bcrypt.hash(newPassword, 10);
@@ -817,18 +1028,34 @@ const authControllers = (
         .status(201)
         .json({ code: 200000, message: "User password updated" });
     } catch (error) {
-      console.log(error);
-      return res.status(500).json({
-        code: 500000,
-        message: error.message,
-      });
+      const error500Json = controller.handleError500(
+        500116,
+        error,
+        "updatePassword"
+      );
+      return controller.callNextOrResOnError(res, next, error500Json);
     }
   };
 
-  controller.updateClient = async (req, res) => {
+  controller.updateClient = async (req, res, next) => {
     try {
       const { name } = req.body;
       const subjectId = req.params.subjectId;
+
+      const client = await knex
+        .table("OAUTH2_Clients")
+        .select()
+        .where("subject_id", subjectId);
+
+      if ((client && client.length === 0) || client === undefined) {
+        const errorJson = controller.handleError(
+          "Client does not exist",
+          404005,
+          404,
+          "updateClient"
+        );
+        return controller.callNextOrResOnError(res, next, errorJson, 404);
+      }
 
       await knex
         .table("OAUTH2_Subjects")
@@ -837,25 +1064,27 @@ const authControllers = (
 
       return res.status(201).json({ code: 200000, message: "Client updated" });
     } catch (error) {
-      return res.status(500).json({
-        code: 500000,
-        message: error.message,
-      });
+      const error500Json = controller.handleError500(
+        500117,
+        error,
+        "updateClient"
+      );
+      return controller.callNextOrResOnError(res, next, error500Json);
     }
   };
 
-  controller.getRoles = async (req, res) => {
+  controller.getRoles = async (req, res, next) => {
     try {
       const basic = req.query["basic"];
       if (basic && basic == "true") {
-        const roles = await knex
+        const rolesResult = await knex
           .table("OAUTH2_Roles")
           .select("OAUTH2_Roles.id", "OAUTH2_Roles.identifier")
           .where({ deleted: false });
         return res.status(200).json({
           code: 200000,
           message: "Select completed",
-          content: roles,
+          content: rolesResult,
         });
       }
       let itemsPerPage = 5;
@@ -934,15 +1163,12 @@ const authControllers = (
         },
       });
     } catch (error) {
-      console.log(error);
-      return res.status(500).json({
-        code: 500000,
-        message: error.message,
-      });
+      const error500Json = controller.handleError500(500118, error, "getRoles");
+      return controller.callNextOrResOnError(res, next, error500Json);
     }
   };
 
-  controller.getResources = async (req, res) => {
+  controller.getResources = async (req, res, next) => {
     try {
       if (req.query["basic"] && req.query["basic"] == "true") {
         const resourceSelectBasicQuery = knex
@@ -963,15 +1189,15 @@ const authControllers = (
 
         const resourcesBasicResult = await resourceSelectBasicQuery;
 
-        const helpers = generalHelpers();
+        const resourceHelpers = generalHelpers();
 
-        const parsedResources =
-          helpers.parseResourceSearch(resourcesBasicResult);
+        const parsedResourcesResult =
+          resourceHelpers.parseResourceSearch(resourcesBasicResult);
 
         return res.status(200).json({
           code: 200000,
           message: "Select completed",
-          content: parsedResources,
+          content: parsedResourcesResult,
         });
       }
 
@@ -1042,11 +1268,12 @@ const authControllers = (
         },
       });
     } catch (error) {
-      console.log(error);
-      return res.status(500).json({
-        code: 500000,
-        message: error.message,
-      });
+      const error500Json = controller.handleError500(
+        500119,
+        error,
+        "getResources"
+      );
+      return controller.callNextOrResOnError(res, next, error500Json);
     }
   };
 
@@ -1112,7 +1339,7 @@ const authControllers = (
     }
   };
 
-  controller.updateRolePermissions = async (req, res) => {
+  controller.updateRolePermissions = async (req, res, next) => {
     try {
       const roleId = req.params.id;
 
@@ -1129,11 +1356,12 @@ const authControllers = (
         message: "Role permissions updated",
       });
     } catch (error) {
-      console.log(error);
-      return res.status(500).json({
-        code: 500000,
-        message: error.message,
-      });
+      const error500Json = controller.handleError500(
+        500120,
+        error,
+        "updateRolePermissions"
+      );
+      return controller.callNextOrResOnError(res, next, error500Json);
     }
   };
 
@@ -1182,7 +1410,7 @@ const authControllers = (
     }
   };
 
-  controller.updateResourcePermissions = async (req, res) => {
+  controller.updateResourcePermissions = async (req, res, next) => {
     try {
       const resourceId = req.params.id;
 
@@ -1199,15 +1427,16 @@ const authControllers = (
         message: "Resource permissions updated",
       });
     } catch (error) {
-      console.log(error);
-      return res.status(500).json({
-        code: 500000,
-        message: error.message,
-      });
+      const error500Json = controller.handleError500(
+        500121,
+        error,
+        "updateResourcePermissions"
+      );
+      return controller.callNextOrResOnError(res, next, error500Json);
     }
   };
 
-  controller.createResource = async (req, res) => {
+  controller.createResource = async (req, res, next) => {
     try {
       const { resourceIdentifier, applications_id } = req.body;
 
@@ -1236,11 +1465,12 @@ const authControllers = (
         },
       });
     } catch (error) {
-      console.log(error);
-      return res.status(500).json({
-        code: 500000,
-        message: error.message,
-      });
+      const error500Json = controller.handleError500(
+        500122,
+        error,
+        "createResource"
+      );
+      return controller.callNextOrResOnError(res, next, error500Json);
     }
   };
 
@@ -1260,7 +1490,7 @@ const authControllers = (
     }
   };
 
-  controller.deleteResource = async (req, res) => {
+  controller.deleteResource = async (req, res, next) => {
     try {
       const resourceId = req.params.id;
 
@@ -1273,15 +1503,16 @@ const authControllers = (
         message: "Resource deleted",
       });
     } catch (error) {
-      console.log(error);
-      return res.status(500).json({
-        code: 500000,
-        message: error.message,
-      });
+      const error500Json = controller.handleError500(
+        500123,
+        error,
+        "deleteResource"
+      );
+      return controller.callNextOrResOnError(res, next, error500Json);
     }
   };
 
-  controller.selectApplications = async (req, res) => {
+  controller.selectApplications = async (_req, res, next) => {
     try {
       const applications = await knex
         .table("OAUTH2_Applications")
@@ -1294,15 +1525,16 @@ const authControllers = (
         content: applications,
       });
     } catch (error) {
-      console.log(error);
-      return res.status(500).json({
-        code: 500000,
-        message: error.message,
-      });
+      const error500Json = controller.handleError500(
+        500124,
+        error,
+        "selectApplications"
+      );
+      return controller.callNextOrResOnError(res, next, error500Json);
     }
   };
 
-  controller.login = async (req, res) => {
+  controller.login = async (req, res, next) => {
     try {
       const { username, password } = req.body;
 
@@ -1326,6 +1558,16 @@ const authControllers = (
         .join("OAUTH2_Roles", "OAUTH2_Roles.id", "OAUTH2_SubjectRole.roles_id")
         .where("OAUTH2_Users.username", username.toLowerCase());
 
+      if ((preUser && preUser.length === 0) || preUser === undefined) {
+        const errorJson = controller.handleError(
+          "Username does not exist",
+          404007,
+          404,
+          "login"
+        );
+        return controller.callNextOrResOnError(res, next, errorJson, 404);
+      }
+
       const helpers = generalHelpers();
       const parsedUser = helpers.joinSearch(preUser, "id", "roles");
 
@@ -1335,10 +1577,13 @@ const authControllers = (
       );
 
       if (!correctPassword) {
-        return res.status(401).json({
-          code: 400001,
-          message: "Incorrect password",
-        });
+        const errorJson = controller.handleError(
+          "Incorrect password",
+          401001,
+          401,
+          "login"
+        );
+        return controller.callNextOrResOnError(res, next, errorJson, 401);
       }
       const token = jwt.sign(
         {
@@ -1365,53 +1610,61 @@ const authControllers = (
         },
       });
     } catch (error) {
-      console.log(error);
-      return res.status(500).json({
-        code: 500000,
-        message: error.message,
-      });
+      const error500Json = controller.handleError500(500125, error, "login");
+      return controller.callNextOrResOnError(res, next, error500Json);
     }
   };
 
-  controller.token = async (req, res) => {
+  controller.token = async (req, res, next) => {
     try {
       const grant_type = req.body.grant_type;
 
       if (grant_type !== "client_credentials" && grant_type !== "password") {
-        return res.status(400).json({
-          code: 400400,
-          message: "Unsupported grand type",
-        });
+        const errorJson = controller.handleError(
+          "Unsupported grand type",
+          400002,
+          400,
+          "token"
+        );
+        return controller.callNextOrResOnError(res, next, errorJson, 400);
       }
 
       if (grant_type === "client_credentials") {
         const { client_id, client_secret } = req.body;
-        const [clientResponse, error] = await controller.handleClientToken(
-          client_id,
-          client_secret
-        );
+        const [clientResponse, tokenClientError] =
+          await controller.handleClientToken(client_id, client_secret);
 
-        if (error === 400001) {
-          return res.status(401).json({
-            code: 400001,
-            message: "Incorrect client secret",
-          });
-        } else if (error === 400011) {
-          return res.status(401).json({
-            code: 400011,
-            message:
-              "Client is not able to generate tokens, use your long live token",
-          });
-        } else if (error === 400004) {
-          return res.status(404).json({
-            code: 400004,
-            message: "Client not found",
-          });
-        } else if (error) {
-          return res.status(500).json({
-            code: 500000,
-            message: error,
-          });
+        if (tokenClientError === 401100) {
+          const errorJson = controller.handleError(
+            "Incorrect client secret",
+            401100,
+            401,
+            "token"
+          );
+          return controller.callNextOrResOnError(res, next, errorJson, 401);
+        } else if (tokenClientError === 403100) {
+          const errorJson = controller.handleError(
+            "Client is not able to generate tokens, use your long live token",
+            403100,
+            403,
+            "token"
+          );
+          return controller.callNextOrResOnError(res, next, errorJson, 403);
+        } else if (tokenClientError === 404100) {
+          const errorJson = controller.handleError(
+            `Client with id ${client_id} not found`,
+            404100,
+            404,
+            "token"
+          );
+          return controller.callNextOrResOnError(res, next, errorJson, 404);
+        } else if (tokenClientError) {
+          const error500Json = controller.handleError500(
+            500200,
+            tokenClientError,
+            "token"
+          );
+          return controller.callNextOrResOnError(res, next, error500Json);
         }
 
         return res.status(201).json({
@@ -1423,26 +1676,34 @@ const authControllers = (
 
       const { username, password } = req.body;
 
-      const [userResponse, error] = await controller.handleUserToken(
+      const [userResponse, tokenUserError] = await controller.handleUserToken(
         username,
         password
       );
 
-      if (error === 400001) {
-        return res.status(401).json({
-          code: 400001,
-          message: "Incorrect user password",
-        });
-      } else if (error === 400004) {
-        return res.status(404).json({
-          code: 400004,
-          message: "User not found",
-        });
-      } else if (error) {
-        return res.status(500).json({
-          code: 500000,
-          message: error,
-        });
+      if (tokenUserError === 401200) {
+        const errorJson = controller.handleError(
+          "Incorrect user password",
+          401200,
+          401,
+          "token"
+        );
+        return controller.callNextOrResOnError(res, next, errorJson, 401);
+      } else if (tokenUserError === 404200) {
+        const errorJson = controller.handleError(
+          "User not found",
+          404200,
+          404,
+          "token"
+        );
+        return controller.callNextOrResOnError(res, next, errorJson, 404);
+      } else if (tokenUserError) {
+        const error500Json = controller.handleError500(
+          500201,
+          tokenUserError,
+          "token"
+        );
+        return controller.callNextOrResOnError(res, next, error500Json);
       }
 
       return res.status(201).json({
@@ -1451,11 +1712,8 @@ const authControllers = (
         content: userResponse,
       });
     } catch (error) {
-      console.log(error);
-      return res.status(500).json({
-        code: 500000,
-        message: error.message,
-      });
+      const error500Json = controller.handleError500(500126, error, "token");
+      return controller.callNextOrResOnError(res, next, error500Json);
     }
   };
 
@@ -1484,14 +1742,14 @@ const authControllers = (
         .andWhere("OAUTH2_Clients.deleted", false);
 
       if ((client && client.length === 0) || client === undefined) {
-        return [null, 400004];
+        return [null, 404100];
       }
 
       const helpers = generalHelpers();
       const parsedClient = helpers.joinSearch(client, "id", "roles");
 
       if (parsedClient[0].access_token) {
-        return [null, 400011];
+        return [null, 403100];
       }
 
       const algorithm = "aes-256-ctr";
@@ -1506,7 +1764,7 @@ const authControllers = (
       decryptedData += decipher.final("utf8");
 
       if (client_secret !== decryptedData) {
-        return [null, 400001];
+        return [null, 401100];
       }
 
       const token = jwt.sign(
@@ -1535,7 +1793,7 @@ const authControllers = (
         null,
       ];
     } catch (error) {
-      return [null, error.message];
+      return [null, error];
     }
   };
 
@@ -1564,7 +1822,7 @@ const authControllers = (
         .andWhere("OAUTH2_Users.deleted", false);
 
       if ((user && user.length === 0) || user === undefined) {
-        return [null, 400004];
+        return [null, 404200];
       }
 
       const helpers = generalHelpers();
@@ -1576,7 +1834,7 @@ const authControllers = (
       );
 
       if (!correctUserPassword) {
-        return [null, 400001];
+        return [null, 401200];
       }
 
       const token = jwt.sign(
@@ -1605,11 +1863,11 @@ const authControllers = (
         null,
       ];
     } catch (error) {
-      return [null, error.message];
+      return [null, error];
     }
   };
 
-  controller.revokeToken = async (req, res) => {
+  controller.revokeToken = async (req, res, next) => {
     try {
       const { revoke } = req.body;
       const { id } = req.params;
@@ -1625,15 +1883,16 @@ const authControllers = (
         content: updateResult,
       });
     } catch (error) {
-      console.log(error);
-      return res.status(500).json({
-        code: 500000,
-        message: error.message,
-      });
+      const error500Json = controller.handleError500(
+        500127,
+        error,
+        "revokeToken"
+      );
+      return controller.callNextOrResOnError(res, next, error500Json);
     }
   };
 
-  controller.generateLongLive = async (req, res) => {
+  controller.generateLongLive = async (req, res, next) => {
     try {
       const { remove_long_live } = req.query;
       const { identifier } = req.body;
@@ -1652,10 +1911,25 @@ const authControllers = (
         });
       }
 
+      const client = await knex
+        .table("OAUTH2_Clients")
+        .select()
+        .where("id", id);
+
+      if (client && client.length === 0) {
+        const errorJson = controller.handleError(
+          "Client does not exist",
+          404008,
+          404,
+          "generateLongLive"
+        );
+        return controller.callNextOrResOnError(res, next, errorJson, 404);
+      }
+
       const access_token = jwt.sign(
         {
           data: {
-            id: id,
+            id: client[0].client_id,
             subjectType: "client",
             identifier: identifier.toLowerCase(),
           },
@@ -1678,15 +1952,16 @@ const authControllers = (
         content: { access_token },
       });
     } catch (error) {
-      console.log(error);
-      return res.status(500).json({
-        code: 500000,
-        message: error.message,
-      });
+      const error500Json = controller.handleError500(
+        500128,
+        error,
+        "generateLongLive"
+      );
+      return controller.callNextOrResOnError(res, next, error500Json);
     }
   };
 
-  controller.getClientSecret = async (req, res) => {
+  controller.getClientSecret = async (req, res, next) => {
     try {
       const { id } = req.params;
 
@@ -1697,11 +1972,14 @@ const authControllers = (
           .where("OAUTH2_Clients.id", id)
       )[0];
 
-      if (!client) {
-        return res.status(404).json({
-          code: 400400,
-          message: "Client not found",
-        });
+      if ((client && client.length === 0) || client === undefined) {
+        const errorJson = controller.handleError(
+          "Client does not exist",
+          404006,
+          404,
+          "getClientSecret"
+        );
+        return controller.callNextOrResOnError(res, next, errorJson, 404);
       }
 
       const algorithm = "aes-256-ctr";
@@ -1723,11 +2001,12 @@ const authControllers = (
         },
       });
     } catch (error) {
-      console.log(error);
-      return res.status(500).json({
-        code: 500000,
-        message: error.message,
-      });
+      const error500Json = controller.handleError500(
+        500129,
+        error,
+        "getClientSecret"
+      );
+      return controller.callNextOrResOnError(res, next, error500Json);
     }
   };
 

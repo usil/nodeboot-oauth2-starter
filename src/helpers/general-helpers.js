@@ -1,17 +1,14 @@
+const ErrorForNext = require("./ErrorForNext.js");
+
 const generalHelpers = () => {
   const helpersObj = {};
   helpersObj.joinSearch = (baseSearch, differentiator, ...similarFields) => {
     const newArray = [];
     for (let index = 0; index < baseSearch.length; index++) {
-      if (index === 0) {
-        for (const similarField of similarFields) {
-          const temporalFieldValue = baseSearch[index][similarField];
-          baseSearch[index][similarField] = [temporalFieldValue];
-        }
-        newArray.push(baseSearch[index]);
-      } else if (
+      if (
+        index === 0 ||
         baseSearch[index][differentiator] !==
-        baseSearch[index - 1][differentiator]
+          baseSearch[index - 1][differentiator]
       ) {
         for (const similarField of similarFields) {
           const temporalFieldValue = baseSearch[index][similarField];
@@ -27,60 +24,129 @@ const generalHelpers = () => {
     }
     return newArray;
   };
-  helpersObj.compareKeys = (a, b) => {
-    var aKeys = Object.keys(a).sort();
-    var bKeys = Object.keys(b).sort();
-    return JSON.stringify(aKeys) === JSON.stringify(bKeys);
+  helpersObj.parsePathNoRoute = (path) => {
+    let parsedPath = path;
+    if (parsedPath.slice(parsedPath.length - 1) === "/" && parsedPath !== "/") {
+      parsedPath = parsedPath.slice(0, -1);
+    }
+    return parsedPath;
   };
-  helpersObj.validateBody = (validationPermissions) => {
+  helpersObj.parsePathWithRoute = (path) => {
+    if (path === "/") {
+      return "";
+    }
+    if (path.slice(path.length - 1) === "/") {
+      return path.slice(0, -1);
+    }
+    return path;
+  };
+  helpersObj.handleError400 = (
+    res,
+    next,
+    externalErrorHandle,
+    message,
+    errorCode,
+    code = 400
+  ) => {
+    if (!externalErrorHandle) {
+      res.status(code).json({
+        code: errorCode,
+        message,
+      });
+      return;
+    }
+    const errorJson = new ErrorForNext(message, code)
+      .setErrorCode(errorCode)
+      .setOnFile("genera-helpers.js")
+      .setOnLibrary("nodeboot-oauth2-starter")
+      .setLogMessage(message)
+      .toJson();
+    next(errorJson);
+  };
+
+  helpersObj.validateBody = (
+    validationPermissions,
+    externalErrorHandle = true
+  ) => {
     const validateObj = {};
     validateObj.validate = (req, res, next) => {
-      for (const permission in validationPermissions) {
+      for (const parameter in validationPermissions) {
         if (
-          (validationPermissions[permission].required === true ||
-            validationPermissions[permission].required === undefined) &&
-          req.body[permission] === undefined
+          (validationPermissions[parameter].required === true ||
+            validationPermissions[parameter].required === undefined) &&
+          req.body[parameter] === undefined
         ) {
-          return res.status(400).json({
-            code: 400000,
-            message: `Invalid body; ${permission} is required`,
-          });
+          return helpersObj.handleError400(
+            res,
+            next,
+            externalErrorHandle,
+            `Invalid body; ${parameter} is required`,
+            400001
+          );
         }
 
-        switch (validationPermissions[permission].type) {
+        switch (validationPermissions[parameter].type) {
           case "array":
-            if (!Array.isArray(req.body[permission])) {
-              return res.status(400).json({
-                code: 400000,
-                message: `Invalid body; ${permission} is not an array`,
-              });
+            if (!Array.isArray(req.body[parameter])) {
+              return helpersObj.handleError400(
+                res,
+                next,
+                externalErrorHandle,
+                `Invalid body; ${parameter} is not an array`,
+                400002
+              );
             }
             break;
           case "string":
             if (
-              Object.prototype.toString.call(req.body[permission]) !==
+              Object.prototype.toString.call(req.body[parameter]) !==
               "[object String]"
             ) {
-              return res.status(400).json({
-                code: 400000,
-                message: `Invalid body; ${permission} is not an string`,
-              });
+              return helpersObj.handleError400(
+                res,
+                next,
+                externalErrorHandle,
+                `Invalid body; ${parameter} is not an string`,
+                400003
+              );
             }
             break;
           case "number":
-            if (isNaN(req.body[permission])) {
-              return res.status(400).json({
-                code: 400000,
-                message: `Invalid body; ${permission} is not a number`,
-              });
+            if (isNaN(req.body[parameter])) {
+              return helpersObj.handleError400(
+                res,
+                next,
+                externalErrorHandle,
+                `Invalid body; ${parameter} is not a number`,
+                400004
+              );
             }
             break;
           case "object":
-            if (typeof req.body[permission] !== "object") {
-              return res.status(400).json({
-                code: 400000,
-                message: `Invalid body; ${permission} is not an object`,
-              });
+            if (typeof req.body[parameter] !== "object") {
+              return helpersObj.handleError400(
+                res,
+                next,
+                externalErrorHandle,
+                `Invalid body; ${parameter} is not an object`,
+                400005
+              );
+            }
+            break;
+          case "boolean":
+            if (
+              req.body[parameter] !== "true" &&
+              req.body[parameter] !== "false" &&
+              req.body[parameter] !== false &&
+              req.body[parameter] !== true
+            ) {
+              return helpersObj.handleError400(
+                res,
+                next,
+                externalErrorHandle,
+                `Invalid body; ${parameter} is not a boolean`,
+                400006
+              );
             }
             break;
           default:

@@ -3,13 +3,15 @@ const path = require("path");
 const randomstring = require("randomstring");
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
+const os = require("os");
 
 const tableCreation = (
   knex,
   cryptoSecret,
   extraResources = [],
   mainApplicationName = "OAUTH2_main_application",
-  clientIdSuffix = "::client.app"
+  clientIdSuffix = "::client.app",
+  log = console
 ) => {
   const tableCreationObj = {};
 
@@ -224,17 +226,19 @@ const tableCreation = (
 
       return [tableColumnInconsistencies, null];
     } catch (error) {
-      console.log(error);
+      log.error(error);
       return [null, error.message];
     }
   };
 
   tableCreationObj.auditDataBase = async () => {
     try {
+      log.info("Auditing tables");
+
       const falseCount = await tableCreationObj.dataBaseHasTables();
 
       if (falseCount > 0) {
-        console.log("Tables will be created from 0");
+        log.info("Tables will be created from 0");
         await tableCreationObj.createTables();
       } else {
         let reCreate = false;
@@ -253,11 +257,11 @@ const tableCreation = (
 
           if (inconsistencies.length > 0) {
             reCreate = true;
-            console.log(`Table ${tableExpected} inconsistencies in columns:`);
+            log.info(`Table ${tableExpected} inconsistencies in columns:`);
             for (const inconsistency of inconsistencies) {
-              console.log(inconsistency + "/n");
+              log.info(inconsistency + "/n");
             }
-            console.log("Tables will be created from 0");
+            log.info("Tables will be created from 0");
           }
         }
         if (reCreate) {
@@ -265,7 +269,7 @@ const tableCreation = (
         }
       }
     } catch (error) {
-      console.log(error);
+      log.error(error);
       throw new Error(error.message);
     }
   };
@@ -409,18 +413,13 @@ const tableCreation = (
       });
 
       await fs.writeFile(
-        path.join(process.cwd(), "/credentials.txt"),
-        `Credentials for the admin user in it.\n
-          Username: admin \n   
-          Password: ${password}
-          Credentials for the admin client.\n
-          client_id: ${clientStringId} \n
-          client_secret: ${clientSecret}`
+        path.join(os.tmpdir(), "credentials.txt"),
+        `User:\nadmin\nPassword:\n${password}\nclientid:\n${clientStringId}\nclientsecret:\n${clientSecret}`
       );
 
-      console.log("Created file credentials.txt in the cwd");
+      log.info("Created file credentials.txt in the temp folder");
     } catch (error) {
-      console.log(error);
+      log.error(error);
       throw new Error(error.message);
     }
   };
@@ -560,7 +559,7 @@ const tableCreation = (
 
       await knex.transaction(tableCreationObj.trxCreate);
     } catch (error) {
-      console.log(error);
+      log.error(error);
       throw new Error(error.message);
     }
   };
@@ -582,6 +581,7 @@ const tableCreation = (
         await knex.schema.dropTableIfExists(tableName);
       }
     } catch (error) {
+      log.error(error);
       throw new Error(error.message);
     }
   };
