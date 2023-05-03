@@ -211,10 +211,10 @@ const tableCreation = (
   };
 
   tableCreationObj.dataBaseHasUsers = async () => {
-    log.info("checking if there are users...")
+    log.debug("checking if there is admin user...")
     // const user = await knex.from("OAUTH2_Users").select().where({'username':"admin",'id': 1}).first();
     const user = await knex.from("OAUTH2_Users").select().where({username: "admin", id: 1}).first()
-    log.info(user)
+    log.debug("user data is: ", user)
     return user;
   }
 
@@ -293,7 +293,7 @@ const tableCreation = (
         if(adminUser == undefined) {
           log.info("There isn't admin user");
           await tableCreationObj.createData();
-          log.info("Created data");
+          log.debug("Created data");
         }
       }
     } catch (error) {
