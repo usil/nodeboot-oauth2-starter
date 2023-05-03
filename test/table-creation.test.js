@@ -34,6 +34,8 @@ const mockedKnexSchema = () => {
     transaction: jest.fn(),
     where: jest.fn().mockReturnThis(),
     select: jest.fn().mockReturnThis(),
+    from: jest.fn().mockReturnThis(),
+    first: jest.fn().mockReturnThis(),
   };
 };
 

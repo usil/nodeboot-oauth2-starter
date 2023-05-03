@@ -211,8 +211,8 @@ const tableCreation = (
   };
 
   tableCreationObj.dataBaseHasUsers = async () => {
-    /* const users = await knex("OAUTH2_Users").where('username', "admin").where('id', 1).first();
-    return users; */
+    const user = await knex.select("*").from("OAUTH2_Users").where({'username':"admin",'id': 1}).first();
+    return user;
   }
 
   tableCreationObj.createData = async () => {
