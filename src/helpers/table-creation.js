@@ -191,7 +191,10 @@ const tableCreation = (
       },
     },
   };
-
+  /**
+   * @description verify if exist oauth tables on the database
+   * @returns numbers of tables that it doesn't exists
+   */
   tableCreationObj.dataBaseHasTables = async () => {
     let falseCount = 0;
 
@@ -206,6 +209,15 @@ const tableCreation = (
 
     return falseCount;
   };
+
+  tableCreationObj.dataBaseHasUsers = async () => {
+    /* const users = await knex("OAUTH2_Users").where('username', "admin").where('id', 1).first();
+    return users; */
+  }
+
+  tableCreationObj.createData = async () => {
+    await knex.transaction(tableCreationObj.trxCreate);
+  }
 
   tableCreationObj.auditTableColumn = async (tableName, columnsToMatch) => {
     try {
@@ -242,6 +254,7 @@ const tableCreation = (
       if (falseCount > 0) {
         log.info("Tables will be created from 0");
         await tableCreationObj.createTables();
+        await tableCreationObj.createData();
       } else {
         let reCreate = false;
         for (const tableExpected in tableCreationObj.tablesExpected) {
@@ -268,6 +281,11 @@ const tableCreation = (
         }
         if (reCreate) {
           await tableCreationObj.createTables();
+          await tableCreationObj.createData();
+          return;
+        }
+        if(!tableCreationObj.dataBaseHasUsers()) {
+          await tableCreationObj.createData();
         }
       }
     } catch (error) {
@@ -560,7 +578,7 @@ const tableCreation = (
         tableCreationObj.createRolePermissionTable
       );
 
-      await knex.transaction(tableCreationObj.trxCreate);
+      // await knex.transaction(tableCreationObj.trxCreate);
     } catch (error) {
       log.error(error);
       throw new Error(error.message);

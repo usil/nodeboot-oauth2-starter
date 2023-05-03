@@ -31,6 +31,9 @@ const mockedKnexSchema = () => {
         .mockResolvedValueOnce(false)
         .mockResolvedValueOnce(true),
     },
+    transaction: jest.fn(),
+    where: jest.fn().mockReturnThis(),
+    select: jest.fn().mockReturnThis(),
   };
 };
 
@@ -596,4 +599,41 @@ describe("Table creation works accordingly", () => {
 
     expect(result).toStrictEqual([[], null]);
   });
+
+  test("Create data", async () => {
+    const knex = mockedKnexSchema();
+    const tableCreationHelper = tableCreation(knex, "secret");
+
+    const hasTablesSpy = jest
+      .spyOn(tableCreationHelper, "dataBaseHasTables")
+      .mockImplementation(() => {
+        return 0;
+      });
+
+    const createTablesSpy = jest
+      .spyOn(tableCreationHelper, "createTables")
+      .mockImplementation(() => {});
+    
+    const dataBaseHasUsersSpy = jest
+      .spyOn(tableCreationHelper, "dataBaseHasUsers")
+      .mockImplementation(() => {
+        return undefined
+      });
+    const auditTableColumnSpy = jest
+      .spyOn(tableCreationHelper, "auditTableColumn")
+      .mockImplementation(() => {
+        return [[], null];
+    });
+    await tableCreationHelper.auditDataBase();
+    expect(dataBaseHasUsersSpy).toHaveBeenCalledTimes(1);
+
+    hasTablesSpy.mockRestore();
+    createTablesSpy.mockRestore();
+    dataBaseHasUsersSpy.mockRestore();
+    auditTableColumnSpy.mockRestore();
+
+
+
+
+  })
 });
