@@ -211,7 +211,7 @@ const tableCreation = (
   };
 
   tableCreationObj.dataBaseHasUsers = async () => {
-    const user = await knex.select("*").from("OAUTH2_Users").where({'username':"admin",'id': 1}).first();
+    const user = await knex.from("OAUTH2_Users").select().where({'username':"admin",'id': 1}).first();
     return user;
   }
 
@@ -284,8 +284,12 @@ const tableCreation = (
           await tableCreationObj.createData();
           return;
         }
+        log.info("Verify if there is admin user");
         if(!tableCreationObj.dataBaseHasUsers()) {
+          log.info("There isn't admin user");
+          log.info("Creating data");
           await tableCreationObj.createData();
+          log.info("Created data");
         }
       }
     } catch (error) {
