@@ -289,7 +289,8 @@ const tableCreation = (
           return;
         }
         log.info("Verify if there is admin user");
-        if(!tableCreationObj.dataBaseHasUsers()) {
+        const adminUser = await tableCreationObj.dataBaseHasUsers();
+        if(adminUser == undefined) {
           log.info("There isn't admin user");
           await tableCreationObj.createData();
           log.info("Created data");
