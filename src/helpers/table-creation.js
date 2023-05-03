@@ -211,11 +211,15 @@ const tableCreation = (
   };
 
   tableCreationObj.dataBaseHasUsers = async () => {
-    const user = await knex.from("OAUTH2_Users").select().where({'username':"admin",'id': 1}).first();
+    log.info("checking if there are users...")
+    // const user = await knex.from("OAUTH2_Users").select().where({'username':"admin",'id': 1}).first();
+    const user = await knex.from("OAUTH2_Users").select().where({username: "admin", id: 1}).first()
+    log.info(user)
     return user;
   }
 
   tableCreationObj.createData = async () => {
+    log.info("Creating data ...")
     await knex.transaction(tableCreationObj.trxCreate);
   }
 
@@ -287,7 +291,6 @@ const tableCreation = (
         log.info("Verify if there is admin user");
         if(!tableCreationObj.dataBaseHasUsers()) {
           log.info("There isn't admin user");
-          log.info("Creating data");
           await tableCreationObj.createData();
           log.info("Created data");
         }
