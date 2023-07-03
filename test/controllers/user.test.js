@@ -600,6 +600,7 @@ describe('Controllers - user', () => {
           table: jest.fn().mockReturnThis(),
           where: jest.fn().mockReturnThis(),
           update: jest.fn().mockResolvedValue([1]),
+          del: jest.fn().mockReturnThis(),
         };
     
         const controllers = authControllers(trxMock, "secret");
