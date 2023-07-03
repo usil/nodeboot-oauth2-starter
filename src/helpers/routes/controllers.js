@@ -815,13 +815,13 @@ const authControllers = (
       await trx
         .table("OAUTH2_Users")
         .where({ subject_id: subjectId })
-        .update("deleted", true);
+        .del();
+        // .update("deleted", true);
 
       await trx
         .table("OAUTH2_Subjects")
         .where({ id: subjectId })
-        .del();
-        // .update("deleted", true);
+        .update("deleted", true);
     } catch (error) {
       throw new Error(error.message);
     }
