@@ -214,7 +214,9 @@ const tableCreation = (
     log.debug("checking if there is admin user...")
     // const user = await knex.from("OAUTH2_Users").select().where({'username':"admin",'id': 1}).first();
     const user = await knex.from("OAUTH2_Users").select().where({username: "admin", id: 1}).first()
-    log.debug("user data is: ", user)
+    const userToLogger = {...user};
+    userToLogger.password = "***";
+    log.debug("user data is: ", userToLogger)
     return user;
   }
 

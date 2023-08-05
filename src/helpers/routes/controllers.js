@@ -11,11 +11,17 @@ const authControllers = (
   expiresIn = "24h",
   cryptoSecret = "key",
   clientIdSuffix = "::client.app",
+  log = console,
   externalErrorHandle = true
 ) => {
   const controller = {};
 
+  const subjectLoginDetails = {};
+  const maxFailedLoginAttemptCount = 3;
+  const coldLockedTimeInMinutes = 3;
+
   controller.handleError = (message, errorCode, statusCode, onFunction) => {
+
     if (!externalErrorHandle) {
       return {
         code: errorCode,
@@ -1536,8 +1542,22 @@ const authControllers = (
   };
 
   controller.login = async (req, res, next) => {
+
+    const helpers = generalHelpers();
+
     try {
       const { username, password } = req.body;
+
+      if(helpers.isSubjectLocked(subjectLoginDetails, username, coldLockedTimeInMinutes)){
+        log.info("Username is locked due to several failed login attempts: "+username.toLowerCase());
+        const errorJson = controller.handleError(
+          "Login failed; Subject is locked. Try again in some minutes.",
+          401003,
+          401,
+          "login"
+        );
+        return controller.callNextOrResOnError(res, next, errorJson, 401);
+      }
 
       const preUser = await knex
         .table("OAUTH2_Users")
@@ -1560,16 +1580,18 @@ const authControllers = (
         .where("OAUTH2_Users.username", username.toLowerCase());
 
       if ((preUser && preUser.length === 0) || preUser === undefined) {
+        log.info("Username does not exist: "+username.toLowerCase());
         const errorJson = controller.handleError(
-          "Username does not exist",
-          404007,
-          404,
+          "Login failed; Invalid username or password.",
+          401001,
+          401,
           "login"
         );
         return controller.callNextOrResOnError(res, next, errorJson, 404);
       }
 
-      const helpers = generalHelpers();
+      helpers.initializeSubjectLoginDetails(subjectLoginDetails, username);
+
       const parsedUser = helpers.joinSearch(preUser, "id", "roles");
 
       const correctPassword = await bcrypt.compare(
@@ -1578,8 +1600,10 @@ const authControllers = (
       );
 
       if (!correctPassword) {
+        log.info("Incorrect password for username: "+username.toLowerCase());
+        helpers.increaseIncorrectPasswordCount(subjectLoginDetails, username, maxFailedLoginAttemptCount);
         const errorJson = controller.handleError(
-          "Incorrect password",
+          "Login failed; Invalid username or password.",
           401001,
           401,
           "login"
@@ -1617,6 +1641,9 @@ const authControllers = (
   };
 
   controller.token = async (req, res, next) => {
+
+    const helpers = generalHelpers();
+
     try {
       const grant_type = req.body.grant_type;
 
@@ -1632,12 +1659,28 @@ const authControllers = (
 
       if (grant_type === "client_credentials") {
         const { client_id, client_secret } = req.body;
+
+        if(helpers.isSubjectLocked(subjectLoginDetails, client_id, coldLockedTimeInMinutes)){
+          log.info("client_id is locked due to several failed login attempts: "+client_id);
+          const errorJson = controller.handleError(
+            "Auth failed; Subject is locked. Try again in some minutes.",
+            401003,
+            401,
+            "token"
+          );
+          return controller.callNextOrResOnError(res, next, errorJson, 401);
+        }
+
         const [clientResponse, tokenClientError] =
           await controller.handleClientToken(client_id, client_secret);
 
         if (tokenClientError === 401100) {
+          log.info("Incorrect client secret for client_id: "+client_id);
+
+          helpers.increaseIncorrectPasswordCount(subjectLoginDetails, client_id, maxFailedLoginAttemptCount);          
+          
           const errorJson = controller.handleError(
-            "Incorrect client secret",
+            "Auth failed; Invalid client_id or client_secret.",
             401100,
             401,
             "token"
@@ -1652,9 +1695,10 @@ const authControllers = (
           );
           return controller.callNextOrResOnError(res, next, errorJson, 403);
         } else if (tokenClientError === 404100) {
+          log.info(`Client with id ${client_id} not found`);
           const errorJson = controller.handleError(
-            `Client with id ${client_id} not found`,
-            404100,
+            "Auth failed; Invalid client_id or client_secret.",
+            401100,
             404,
             "token"
           );

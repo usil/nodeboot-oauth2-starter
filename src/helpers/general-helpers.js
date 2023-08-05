@@ -332,6 +332,53 @@ const generalHelpers = () => {
     return newArray;
   };
 
+  helpersObj.isSubjectLocked = (subjectLoginDetails, subjectId, coldDownInMinutes) => {
+
+    if(typeof subjectLoginDetails[subjectId] === 'undefined') return false;
+    
+    if(subjectLoginDetails[subjectId].isLocked){
+      //if more than coldDownInMinutes have passed, it will be unlocked
+      var minutes = getDifferenceInMinutes(subjectLoginDetails[subjectId].startLockingDateMillis)
+      console.log(`coldDownInMinutes ${coldDownInMinutes} minutes: ${minutes}`)
+      if(minutes>coldDownInMinutes){
+        subjectLoginDetails[subjectId].failedAttemptCount = 0;
+        subjectLoginDetails[subjectId].isLocked = false;
+        delete subjectLoginDetails[subjectId].startLockingDateMillis;
+      }
+      //finally return true but in the next attempt, account is unlocked
+      return true;
+    }else{
+      return false;
+    }
+  };
+
+  helpersObj.initializeSubjectLoginDetails = (subjectLoginDetails, subjectId) => {
+    if(typeof subjectLoginDetails[subjectId] === 'undefined'){
+      subjectLoginDetails[subjectId] = {};
+    }
+  };   
+
+  helpersObj.increaseIncorrectPasswordCount = (subjectLoginDetails, subjectId, maxFailedLoginAttemptCount) => {
+
+    if(typeof subjectLoginDetails[subjectId] === 'undefined'){
+      subjectLoginDetails[subjectId] = {};
+    }
+
+    subjectLoginDetails[subjectId].failedAttemptCount = 
+      new Number(subjectLoginDetails[subjectId].failedAttemptCount||0)+1;
+    
+    if(subjectLoginDetails[subjectId].failedAttemptCount > maxFailedLoginAttemptCount){
+      subjectLoginDetails[subjectId].isLocked = true;
+      subjectLoginDetails[subjectId].startLockingDateMillis =  new Date().getTime();
+    }
+  };  
+
+  getDifferenceInMinutes = (startTimeInMillis)=>{
+    var endTime = new Date();
+    var difference = endTime.getTime() - startTimeInMillis; 
+    return Math.round(difference / 60000);
+  }
+
   return helpersObj;
 };
 

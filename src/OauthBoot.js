@@ -128,7 +128,8 @@ class OauthBoot {
         this.jwtSecret,
         this.expiresIn,
         this.cryptoSecret,
-        this.clientIdSuffix
+        this.clientIdSuffix,
+        this.log
       );
 
       authSecureRoutes(this.expressSecured, helper.validateBody, controller);
