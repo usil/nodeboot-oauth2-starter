@@ -3,13 +3,15 @@ const path = require("path");
 const randomstring = require("randomstring");
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
+const os = require("os");
 
 const tableCreation = (
   knex,
   cryptoSecret,
   extraResources = [],
   mainApplicationName = "OAUTH2_main_application",
-  clientIdSuffix = "::client.app"
+  clientIdSuffix = "::client.app",
+  log = console
 ) => {
   const tableCreationObj = {};
 
@@ -189,11 +191,15 @@ const tableCreation = (
       },
     },
   };
-
+  /**
+   * @description verify if exist oauth tables on the database
+   * @returns numbers of tables that it doesn't exists
+   */
   tableCreationObj.dataBaseHasTables = async () => {
     let falseCount = 0;
 
     for (const tableExpected in tableCreationObj.tablesExpected) {
+      //verify if tables exist
       const result = await knex.schema.hasTable(tableExpected);
       if (result === false) {
         falseCount++;
@@ -203,6 +209,21 @@ const tableCreation = (
 
     return falseCount;
   };
+
+  tableCreationObj.dataBaseHasUsers = async () => {
+    log.debug("checking if there is admin user...")
+    // const user = await knex.from("OAUTH2_Users").select().where({'username':"admin",'id': 1}).first();
+    const user = await knex.from("OAUTH2_Users").select().where({username: "admin"}).first()
+    const userToLogger = {...user};
+    userToLogger.password = "***";
+    log.debug("user data is: ", userToLogger)
+    return user;
+  }
+
+  tableCreationObj.createData = async () => {
+    log.info("Creating data ...")
+    await knex.transaction(tableCreationObj.trxCreate);
+  }
 
   tableCreationObj.auditTableColumn = async (tableName, columnsToMatch) => {
     try {
@@ -224,18 +245,22 @@ const tableCreation = (
 
       return [tableColumnInconsistencies, null];
     } catch (error) {
-      console.log(error);
+      log.error(error);
       return [null, error.message];
     }
   };
 
   tableCreationObj.auditDataBase = async () => {
     try {
+      log.info("Auditing tables");
+
+      //verify if has tables expected
       const falseCount = await tableCreationObj.dataBaseHasTables();
 
       if (falseCount > 0) {
-        console.log("Tables will be created from 0");
+        log.info("Tables will be created from 0");
         await tableCreationObj.createTables();
+        await tableCreationObj.createData();
       } else {
         let reCreate = false;
         for (const tableExpected in tableCreationObj.tablesExpected) {
@@ -253,19 +278,28 @@ const tableCreation = (
 
           if (inconsistencies.length > 0) {
             reCreate = true;
-            console.log(`Table ${tableExpected} inconsistencies in columns:`);
+            log.info(`Table ${tableExpected} inconsistencies in columns:`);
             for (const inconsistency of inconsistencies) {
-              console.log(inconsistency + "/n");
+              log.info(inconsistency + "/n");
             }
-            console.log("Tables will be created from 0");
+            log.info("Tables will be created from 0");
           }
         }
         if (reCreate) {
           await tableCreationObj.createTables();
+          await tableCreationObj.createData();
+          return;
+        }
+        log.info("Verify if there is admin user");
+        const adminUser = await tableCreationObj.dataBaseHasUsers();
+        if(adminUser == undefined) {
+          log.info("There isn't admin user");
+          await tableCreationObj.createData();
+          log.debug("Created data");
         }
       }
     } catch (error) {
-      console.log(error);
+      log.error(error);
       throw new Error(error.message);
     }
   };
@@ -393,6 +427,7 @@ const tableCreation = (
       let encryptedData = cipher.update(clientSecret, "utf-8", "hex");
       encryptedData += cipher.final("hex");
 
+      //CREATE USER;
       await trx.table("OAUTH2_Users").insert({
         username: "admin",
         password: encryptedPassword,
@@ -409,18 +444,13 @@ const tableCreation = (
       });
 
       await fs.writeFile(
-        path.join(process.cwd(), "/credentials.txt"),
-        `Credentials for the admin user in it.\n
-          Username: admin \n   
-          Password: ${password}
-          Credentials for the admin client.\n
-          client_id: ${clientStringId} \n
-          client_secret: ${clientSecret}`
+        path.join(os.tmpdir(), "credentials.txt"),
+        `User:\nadmin\nPassword:\n${password}\nclientid:\n${clientStringId}\nclientsecret:\n${clientSecret}`
       );
 
-      console.log("Created file credentials.txt in the cwd");
+      log.info("Created file credentials.txt in the temp folder");
     } catch (error) {
-      console.log(error);
+      log.error(error);
       throw new Error(error.message);
     }
   };
@@ -558,9 +588,9 @@ const tableCreation = (
         tableCreationObj.createRolePermissionTable
       );
 
-      await knex.transaction(tableCreationObj.trxCreate);
+      // await knex.transaction(tableCreationObj.trxCreate);
     } catch (error) {
-      console.log(error);
+      log.error(error);
       throw new Error(error.message);
     }
   };
@@ -582,6 +612,7 @@ const tableCreation = (
         await knex.schema.dropTableIfExists(tableName);
       }
     } catch (error) {
+      log.error(error);
       throw new Error(error.message);
     }
   };
